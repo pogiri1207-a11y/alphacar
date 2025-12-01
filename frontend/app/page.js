@@ -145,35 +145,6 @@ export default function HomePage() {
 
   return (
     <div className="page-wrapper">
-      {/* 헤더 */}
-      <header className="header">
-        <div className="header-left">
-          <Link href="/" className="logo">
-            ALPHACAR
-          </Link>
-        </div>
-        <div className="header-right">
-          <Link href="/login" className="mypage-btn">
-            마이페이지
-          </Link>
-        </div>
-      </header>
-
-      {/* 상단 메뉴 */}
-      <nav className="top-nav">
-        <Link href="/search" className="nav-item">
-          검색
-        </Link>
-        <Link href="/drive" className="nav-item">
-          드라이브 코스
-        </Link>
-        <Link href="/quote" className="nav-item">
-          견적내기
-        </Link>
-        <Link href="/community" className="nav-item">
-          커뮤니티
-        </Link>
-      </nav>
 
       {errorMsg && (
         <div

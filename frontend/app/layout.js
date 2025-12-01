@@ -29,7 +29,6 @@ export default function RootLayout({ children }) {
 
           {/* 상단 메뉴 */}
           <nav style={{ display: "flex", gap: "16px", fontSize: "14px" }}>
-            <Link href="/">메인</Link>
             <Link href="/quote">견적 비교</Link>
             <Link href="/drive">드라이브 코스</Link>
             <Link href="/community">커뮤니티</Link>
