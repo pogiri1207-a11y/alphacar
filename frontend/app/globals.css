@@ -534,3 +534,261 @@ a {
   font-weight: 600;
 }
 
+/* =========================
+   GNB / 전체메뉴 공통 스타일
+   ========================= */
+
+/* 전체 기본 폰트 */
+:root {
+  --font-main: "SUIT", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
+    sans-serif;
+}
+
+html,
+body {
+  font-family: var(--font-main);
+}
+
+/* 상단 GNB 네비게이션 (견적 비교 / 소식 / 커뮤니티) */
+.gnb-nav {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  font-size: 15px;
+}
+
+.gnb-link {
+  position: relative;
+  text-decoration: none;
+  color: #222;
+  font-weight: 600;
+  padding-bottom: 4px;
+}
+
+.gnb-link:hover {
+  color: #111;
+}
+
+/* 선택된 메뉴 밑줄 애니메이션 */
+.gnb-link::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  height: 2px;
+  width: 0;
+  background-color: #111;
+  transition: width 0.25s ease;
+}
+
+.gnb-link-active::after {
+  width: 100%;
+}
+
+/* =========================
+   전체메뉴(메가 메뉴) 패널
+   ========================= */
+
+.mega-menu-panel {
+  position: absolute;
+  left: 0;
+  top: 100%;
+  width: 100%;
+  background-color: #ffffff;
+  border-top: 1px solid #eee;
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.08);
+  z-index: 999;
+}
+
+/* 안쪽 컨테이너 */
+.mega-menu-panel > div {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 24px 40px 40px;
+}
+
+/* 인사말 영역 */
+.mega-greeting {
+  margin-bottom: 24px;
+  font-size: 18px;
+}
+
+.mega-greeting-name {
+  font-weight: 800;
+  margin-right: 4px;
+}
+
+.mega-greeting-sub {
+  font-weight: 500;
+  color: #444;
+}
+
+/* =========================
+   GNB / 전체메뉴 공통 스타일
+   ========================= */
+
+/* 전체 기본 폰트 */
+:root {
+  --font-main: "SUIT", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
+    sans-serif;
+}
+
+html,
+body {
+  font-family: var(--font-main);
+}
+
+/* 상단 GNB 네비게이션 (견적 비교 / 소식 / 커뮤니티) */
+.gnb-nav {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  font-size: 15px;
+}
+
+.gnb-link {
+  position: relative;
+  text-decoration: none;
+  color: #222;
+  font-weight: 600;
+  padding-bottom: 4px;
+}
+
+.gnb-link:hover {
+  color: #111;
+}
+
+/* 선택된 메뉴 밑줄 애니메이션 */
+.gnb-link::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  height: 2px;
+  width: 0;
+  background-color: #111;
+  transition: width 0.25s ease;
+}
+
+.gnb-link-active::after {
+  width: 100%;
+}
+
+/* =========================
+   전체메뉴(메가 메뉴) 패널
+   ========================= */
+
+.mega-menu-panel {
+  position: absolute;
+  left: 0;
+  top: 100%;
+  width: 100%;
+  background-color: #ffffff;
+  border-top: 1px solid #eee;
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.08);
+  z-index: 999;
+}
+
+/* 안쪽 컨테이너 */
+.mega-menu-panel > div {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 24px 40px 40px;
+}
+
+/* 인사말 영역 */
+.mega-greeting {
+  margin-bottom: 24px;
+  font-size: 18px;
+}
+
+.mega-greeting-name {
+  font-weight: 800;
+  margin-right: 4px;
+}
+
+.mega-greeting-sub {
+  font-weight: 500;
+  color: #444;
+}
+
+/* 6개 컬럼 그리드 (견적비교 / 소식 / 커뮤니티 / 이벤트 / 마이페이지+상담 / 혜택+고객센터) */
+.mega-menu-grid {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  column-gap: 40px;
+  row-gap: 24px;
+}
+
+/* 각 컬럼 제목 */
+.mega-menu-title {
+  font-size: 16px;
+  font-weight: 800;
+  margin-bottom: 14px;
+  padding-bottom: 6px;
+  border-bottom: 2px solid #ddd;
+}
+
+/* 고객센터 전화번호 */
+.mega-call-number {
+  margin-top: 4px;
+  font-size: 22px;
+  font-weight: 800;
+  letter-spacing: 0.03em;
+}
+/* 상단 GNB 밑줄 애니메이션 */
+.gnb-link {
+  position: relative;
+  padding-bottom: 2px;
+}
+
+.gnb-link::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  height: 2px;
+  width: 100%;
+  background-color: #0070f3; /* 파란색 */
+  transform: scaleX(0);
+  transform-origin: right; /* 오른쪽 기준으로 줄어든 상태 */
+  transition: transform 0.25s ease;
+}
+
+/* 호버 또는 활성 메뉴일 때: 오른쪽 → 왼쪽으로 채워지는 느낌 */
+.gnb-link:hover::after,
+.gnb-link-active::after {
+  transform: scaleX(1);
+  transform-origin: left;
+}
+/* 전체메뉴 박스 위에서 스르륵 내려오는 모션 */
+.mega-panel {
+  animation: megaSlideDown 0.4s ease-out;
+}
+
+@keyframes megaSlideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+/* 전체메뉴 박스 위에서 스르륵 내려오는 모션 */
+.mega-panel {
+  animation: megaSlideDown 0.4s ease-out;
+}
+
+@keyframes megaSlideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+

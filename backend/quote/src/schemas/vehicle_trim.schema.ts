@@ -1,31 +1,25 @@
-// backend/quote/src/schemas/vehicle_trim.schema.ts
+// kevin@devserver:~/alphacar/backend/quote/src/schemas$ cat vehicle_trim.schema.ts
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
-import { HydratedDocument, Types } from 'mongoose';
-// [추가된 부분] VehicleOption 클래스 import
-import { VehicleOption } from './vehicle_option.schema'; 
+import { Document, Types } from 'mongoose';
 
-export type VehicleTrimDocument = HydratedDocument<VehicleTrim>;
+export type VehicleTrimDocument = VehicleTrim & Document;
 
-@Schema({ collection: 'vehicletrims' }) 
+@Schema({ collection: 'vehicletrims', timestamps: true })
 export class VehicleTrim {
-  @Prop()
-  name: string; 
+    _id: Types.ObjectId; 
+    
+    // ✅ 이 vehicle_id 필드가 요청 ID와 매칭된다고 가정합니다.
+    @Prop({ type: Types.ObjectId, required: true })
+    vehicle_id: Types.ObjectId; 
 
-  @Prop({ type: Types.ObjectId })
-  vehicle_id: Types.ObjectId; 
-
-  @Prop()
-  base_price: number;
-
-  @Prop()
-  description: string;
-
-  @Prop()
-  image_url: string;
-
-  // [수정] VehicleOption을 참조하도록 설정
-  @Prop({ type: [{ type: Types.ObjectId, ref: 'VehicleOption' }] })
-  options: VehicleOption[]; 
+    @Prop({ required: true })
+    name: string; // 트림명
+    
+    @Prop({ required: true })
+    base_price: number; // 기본 가격
+    
+    @Prop()
+    image_url: string; 
 }
 
 export const VehicleTrimSchema = SchemaFactory.createForClass(VehicleTrim);

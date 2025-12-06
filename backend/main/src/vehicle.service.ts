@@ -1,6 +1,6 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException, InternalServerErrorException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import { Model } from 'mongoose';
+import { Model, Types } from 'mongoose';
 import { Vehicle } from './vehicle.schema';
 import { RedisService } from './redis/redis.service';
 
@@ -18,13 +18,44 @@ export class VehicleService {
   }
 
   // [기존 기능 유지] 특정 차량 상세 조회
-  async findOne(id: string): Promise<Vehicle> {
-    const vehicle = await this.vehicleModel.findById(id).exec();
-    if (!vehicle) {
-      throw new NotFoundException(`ID가 ${id}인 차량을 찾을 수 없습니다.`);
+//  async findOne(id: string): Promise<Vehicle> {
+//    const vehicle = await this.vehicleModel.findById(id).exec();
+//    if (!vehicle) {
+//      throw new NotFoundException(`ID가 ${id}인 차량을 찾을 수 없습니다.`);
+//    }
+//    return vehicle;
+//  }
+
+// 🚨 [최종 수정] 특정 차량 상세 조회 (DB 오류 안전망 추가)
+    async findOne(id: string): Promise<Vehicle> {
+        
+        // 1. ID 형식 유효성 검사 (기존 유지)
+        if (!Types.ObjectId.isValid(id)) {
+            throw new BadRequestException(`요청된 차량 ID '${id}'의 형식이 유효하지 않습니다.`);
+        }
+
+        try {
+            // 2. 🚨 DB 쿼리를 try...catch로 감싸서 Mongoose 오류를 방지
+            const vehicle = await this.vehicleModel.findById(id).exec();
+            
+            if (!vehicle) {
+                // 차량을 찾지 못하면 404 Not Found 에러 반환
+                throw new NotFoundException(`ID가 ${id}인 차량을 찾을 수 없습니다.`);
+            }
+            
+            return vehicle;
+            
+        } catch (error) {
+            // Mongoose 오류가 아닌 NestJS HttpException은 다시 던져서 NestJS가 처리하도록 함
+            if (error instanceof NotFoundException || error instanceof BadRequestException) {
+                throw error;
+            }
+            
+            // 3. 🚨 Mongoose나 기타 예상치 못한 DB 연결 오류 발생 시 500 에러 반환
+            console.error(`[DB ERROR] ID ${id} 조회 중 치명적인 Mongoose 오류 발생:`, error.message);
+            throw new InternalServerErrorException('데이터베이스 조회 중 서버 내부 오류가 발생했습니다.');
+        }
     }
-    return vehicle;
-  }
 
   // ==========================================================
   // [수정 및 추가된 기능] Redis 관련 로직

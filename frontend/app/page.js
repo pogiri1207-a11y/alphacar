@@ -1,3 +1,4 @@
+// app/page.js
 "use client";
 
 import { useEffect, useState } from "react";
@@ -5,8 +6,6 @@ import { useRouter } from "next/navigation";
 import { fetchMainData } from "../lib/api";
 import YouTubeSection from "./components/YouTubeSection";
 import CarDetailModal from "./components/CarDetailModal";
-
-const YOUTUBE_MIN_WIDTH = 1650;
 
 // 백엔드 주소 (Next.js rewrites 설정에 따름)
 const API_BASE_URL = "/api";
@@ -53,14 +52,13 @@ export default function HomePage() {
   const [searchText, setSearchText] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const ITEMS_PER_PAGE = 12;
-  const [showYoutube, setShowYoutube] = useState(true);
 
-  // 모달 및 유저 상태 (recentCount 삭제됨)
+  // 모달 및 유저 상태
   const [selectedCar, setSelectedCar] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [userId, setUserId] = useState(null);
 
-  // 1. 초기 실행: 유저 ID 생성 (카운트 조회 로직은 제거함 - Sidebar에서 할 일)
+  // 1. 초기 실행: 유저 ID 생성
   useEffect(() => {
     let storedUserId = localStorage.getItem("alphacar_user_id");
     if (!storedUserId) {
@@ -71,17 +69,10 @@ export default function HomePage() {
   }, []);
 
   useEffect(() => {
-    const handleResize = () => {
-      if (typeof window === "undefined") return;
-      setShowYoutube(window.innerWidth >= YOUTUBE_MIN_WIDTH);
-    };
-    handleResize();
-    window.addEventListener("resize", handleResize);
-    return () => window.removeEventListener("resize", handleResize);
-  }, []);
-
-  useEffect(() => {
-    const timer = setInterval(() => setBannerIndex((prev) => (prev + 1) % bannerItems.length), 4000);
+    const timer = setInterval(
+      () => setBannerIndex((prev) => (prev + 1) % bannerItems.length),
+      4000
+    );
     return () => clearInterval(timer);
   }, []);
 
@@ -134,27 +125,28 @@ export default function HomePage() {
     if (current.link) router.push(current.link);
   };
 
-  // ★ [핵심] 차량 클릭 핸들러: 팝업 열기 + Redis 저장 요청 (화면 갱신 로직 삭제)
+  // ★ 차량 클릭 핸들러: 팝업 열기 + Redis 저장 + 이벤트 발송
   const handleCarClick = async (car) => {
     setSelectedCar(car);
     setIsModalOpen(true);
 
-    if (!userId) return; // ID 없으면 기록 안 함
+    if (!userId) return;
 
     try {
-      const carId = car.id || car._id; 
+      const carId = car.id || car._id;
 
       if (carId) {
         const targetUrl = `${API_BASE_URL}/${carId}/view`;
-        
-        // POST 요청을 보내서 "봤음" 처리만 하고, 응답값(count)으로 화면을 갱신하진 않음
+
         await fetch(targetUrl, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ userId }),
         });
-        
+
         console.log(`✅ [기록 완료] ${car.name}`);
+
+        window.dispatchEvent(new Event("vehicleViewed"));
       }
     } catch (error) {
       console.error("❌ 조회 기록 전송 실패:", error);
@@ -169,56 +161,188 @@ export default function HomePage() {
   return (
     <main style={{ backgroundColor: "#ffffff", minHeight: "100vh" }}>
       <div className="page-wrapper">
-        
-        {/* 우측 하단 플로팅 버튼 제거됨 */}
-
-        {showYoutube && (
-          <div style={{ position: "fixed", top: "170px", right: "2px", zIndex: 1000 }}>
-            <YouTubeSection />
-          </div>
-        )}
+        {/* 우측 하단 플로팅 버튼 제거됨 (RightSideBar에서 처리) */}
 
         {errorMsg && (
-          <div style={{ backgroundColor: "#ffffff", border: "1px solid #ffccc7", padding: "10px", textAlign: "center", color: "#ff4d4f", margin: "10px" }}>
+          <div
+            style={{
+              backgroundColor: "#ffffff",
+              border: "1px solid #ffccc7",
+              padding: "10px",
+              textAlign: "center",
+              color: "#ff4d4f",
+              margin: "10px",
+            }}
+          >
             ⚠️ {errorMsg}
           </div>
         )}
 
+        {/* 배너 영역 */}
         <section className="banner-section">
-          <div className="banner-slide" style={{ backgroundImage: `url(${bannerItems[safeBannerIndex].img})` }} onClick={handleBannerClick} />
+          <div
+            className="banner-slide"
+            style={{ backgroundImage: `url(${bannerItems[safeBannerIndex].img})` }}
+            onClick={handleBannerClick}
+          />
           <div className="banner-dots">
             {bannerItems.map((item, idx) => (
-              <button key={item.id} className={idx === safeBannerIndex ? "dot active" : "dot"} onClick={() => setBannerIndex(idx)} />
+              <button
+                key={item.id}
+                className={idx === safeBannerIndex ? "dot active" : "dot"}
+                onClick={() => setBannerIndex(idx)}
+              />
             ))}
           </div>
         </section>
 
+        {/* 검색 박스 */}
         <section style={{ margin: "30px auto", padding: "0 40px" }}>
-          <form onSubmit={handleSearchSubmit} style={{ width: "100%", backgroundColor: "white", borderRadius: "999px", border: "2px solid #0070f3", padding: "12px 20px", display: "flex", alignItems: "center", boxShadow: "0 4px 12px rgba(0,0,0,0.1)", boxSizing: "border-box" }}>
+          <form
+            onSubmit={handleSearchSubmit}
+            style={{
+              width: "100%",
+              backgroundColor: "white",
+              borderRadius: "999px",
+              border: "2px solid #0070f3",
+              padding: "12px 20px",
+              display: "flex",
+              alignItems: "center",
+              boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
+              boxSizing: "border-box",
+            }}
+          >
             <span style={{ marginRight: "10px", fontSize: "18px" }}>🔍</span>
-            <input type="text" placeholder="찾는 차량을 검색해 주세요 (예: 그랜저)" value={searchText} onChange={(e) => setSearchText(e.target.value)} style={{ border: "none", outline: "none", flex: 1, fontSize: "16px" }} />
-            <button type="submit" style={{ border: "none", background: "#0070f3", color: "white", borderRadius: "20px", padding: "8px 16px", fontWeight: "bold", cursor: "pointer", marginLeft: "10px" }}>검색</button>
+            <input
+              type="text"
+              placeholder="찾는 차량을 검색해 주세요 (예: 그랜저)"
+              value={searchText}
+              onChange={(e) => setSearchText(e.target.value)}
+              style={{ border: "none", outline: "none", flex: 1, fontSize: "16px" }}
+            />
+            <button
+              type="submit"
+              style={{
+                border: "none",
+                background: "#0070f3",
+                color: "white",
+                borderRadius: "20px",
+                padding: "8px 16px",
+                fontWeight: "bold",
+                cursor: "pointer",
+                marginLeft: "10px",
+              }}
+            >
+              검색
+            </button>
           </form>
         </section>
 
+        {/* TOP10 박스 */}
         <section style={{ margin: "30px auto 0", padding: "0 40px" }}>
-          <h3 style={{ fontSize: "18px", fontWeight: "700", marginBottom: "18px" }}>ALPHACAR 판매 순위 TOP 10</h3>
-          <div style={{ backgroundColor: "#ffffff", borderRadius: "20px", padding: "24px 28px 28px", boxShadow: "0 6px 20px rgba(0,0,0,0.06)", display: "flex", gap: "32px", flexWrap: "wrap" }}>
+          <h3
+            style={{
+              fontSize: "18px",
+              fontWeight: "700",
+              marginBottom: "18px",
+            }}
+          >
+            ALPHACAR 판매 순위 TOP 10
+          </h3>
+          <div
+            style={{
+              backgroundColor: "#ffffff",
+              borderRadius: "20px",
+              padding: "24px 28px 28px",
+              boxShadow: "0 6px 20px rgba(0,0,0,0.06)",
+              display: "flex",
+              gap: "32px",
+              flexWrap: "wrap",
+            }}
+          >
             <div style={{ flex: 1, minWidth: "320px" }}>
-              <h4 style={{ fontSize: "16px", fontWeight: "700", marginBottom: "10px" }}> 국내 자동차 판매 순위 TOP 5</h4>
+              <h4
+                style={{
+                  fontSize: "16px",
+                  fontWeight: "700",
+                  marginBottom: "10px",
+                }}
+              >
+                {" "}
+                국내 자동차 판매 순위 TOP 5
+              </h4>
               {domesticTop5.map((car) => (
-                <div key={car.rank} style={{ display: "flex", alignItems: "center", padding: "8px 0", borderBottom: "1px solid #f5f5f5", fontSize: "13px" }}>
-                  <span style={{ width: "22px", height: "22px", borderRadius: "50%", background: "#0070f3", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", marginRight: "10px", fontSize: "12px", fontWeight: "700" }}>{car.rank}</span>
+                <div
+                  key={car.rank}
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    padding: "8px 0",
+                    borderBottom: "1px solid #f5f5f5",
+                    fontSize: "13px",
+                  }}
+                >
+                  <span
+                    style={{
+                      width: "22px",
+                      height: "22px",
+                      borderRadius: "50%",
+                      background: "#0070f3",
+                      color: "#fff",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      marginRight: "10px",
+                      fontSize: "12px",
+                      fontWeight: "700",
+                    }}
+                  >
+                    {car.rank}
+                  </span>
                   <span style={{ flex: 1, fontWeight: 500 }}>{car.name}</span>
                   <span style={{ width: "60px", textAlign: "right" }}>{car.share}</span>
                 </div>
               ))}
             </div>
             <div style={{ flex: 1, minWidth: "320px" }}>
-              <h4 style={{ fontSize: "16px", fontWeight: "700", marginBottom: "10px" }}> 외제 자동차 판매 순위 TOP 5</h4>
+              <h4
+                style={{
+                  fontSize: "16px",
+                  fontWeight: "700",
+                  marginBottom: "10px",
+                }}
+              >
+                {" "}
+                외제 자동차 판매 순위 TOP 5
+              </h4>
               {foreignTop5.map((car) => (
-                <div key={car.rank} style={{ display: "flex", alignItems: "center", padding: "8px 0", borderBottom: "1px solid #f5f5f5", fontSize: "13px" }}>
-                  <span style={{ width: "22px", height: "22px", borderRadius: "50%", background: "#ff4d4f", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", marginRight: "10px", fontSize: "12px", fontWeight: "700" }}>{car.rank}</span>
+                <div
+                  key={car.rank}
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    padding: "8px 0",
+                    borderBottom: "1px solid #f5f5f5",
+                    fontSize: "13px",
+                  }}
+                >
+                  <span
+                    style={{
+                      width: "22px",
+                      height: "22px",
+                      borderRadius: "50%",
+                      background: "#ff4d4f",
+                      color: "#fff",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      marginRight: "10px",
+                      fontSize: "12px",
+                      fontWeight: "700",
+                    }}
+                  >
+                    {car.rank}
+                  </span>
                   <span style={{ flex: 1, fontWeight: 500 }}>{car.name}</span>
                   <span style={{ width: "60px", textAlign: "right" }}>{car.share}</span>
                 </div>
@@ -227,24 +351,57 @@ export default function HomePage() {
           </div>
         </section>
 
+        {/* 브랜드 / 차량 리스트 */}
         <section className="brand-section">
           <div className="brand-tabs">
             {brands.map((brand) => (
-              <button key={brand} className={brand === selectedBrand ? "brand-btn brand-btn-active" : "brand-btn"} onClick={() => setSelectedBrand(brand)}>{brand}</button>
+              <button
+                key={brand}
+                className={
+                  brand === selectedBrand ? "brand-btn brand-btn-active" : "brand-btn"
+                }
+                onClick={() => setSelectedBrand(brand)}
+              >
+                {brand}
+              </button>
             ))}
           </div>
 
           <div className="car-list">
-            {loading && !errorMsg && <p style={{ textAlign: "center", width: "100%" }}>데이터 로딩 중...</p>}
-            {!loading && filteredCars.length === 0 && <p className="empty-text">{errorMsg ? "데이터를 불러올 수 없습니다." : "해당 브랜드의 차량이 없습니다."}</p>}
+            {loading && !errorMsg && (
+              <p style={{ textAlign: "center", width: "100%" }}>데이터 로딩 중...</p>
+            )}
+            {!loading && filteredCars.length === 0 && (
+              <p className="empty-text">
+                {errorMsg ? "데이터를 불러올 수 없습니다." : "해당 브랜드의 차량이 없습니다."}
+              </p>
+            )}
 
             {paginatedCars.map((car, idx) => (
-              <div key={car._id || car.name || idx} className="car-card" onClick={() => handleCarClick(car)} style={{ cursor: "pointer" }}>
-                <div className="car-image-placeholder" style={{ overflow: "hidden", background: "#fff" }}>
-                  {car.imageUrl ? <img src={car.imageUrl} alt={car.name} style={{ width: "100%", height: "100%", objectFit: "contain" }} /> : <span style={{ color: "#ccc" }}>이미지 없음</span>}
+              <div
+                key={car._id || car.name || idx}
+                className="car-card"
+                onClick={() => handleCarClick(car)}
+                style={{ cursor: "pointer" }}
+              >
+                <div
+                  className="car-image-placeholder"
+                  style={{ overflow: "hidden", background: "#fff" }}
+                >
+                  {car.imageUrl ? (
+                    <img
+                      src={car.imageUrl}
+                      alt={car.name}
+                      style={{ width: "100%", height: "100%", objectFit: "contain" }}
+                    />
+                  ) : (
+                    <span style={{ color: "#ccc" }}>이미지 없음</span>
+                  )}
                 </div>
                 <div className="car-info">
-                  <p className="car-name">[{car.manufacturer || "미분류"}] {car.name || "이름 없음"}</p>
+                  <p className="car-name">
+                    [{car.manufacturer || "미분류"}] {car.name || "이름 없음"}
+                  </p>
                   <p className="car-price">{formatPrice(car.minPrice)} ~</p>
                   <button className="car-detail-btn">상세보기</button>
                 </div>
@@ -255,11 +412,22 @@ export default function HomePage() {
           {filteredCars.length > 0 && (
             <div className="pagination">
               {Array.from({ length: totalPages }, (_, idx) => (
-                <button key={idx + 1} onClick={() => setCurrentPage(idx + 1)} className={(idx + 1) === currentPage ? "page-btn page-btn-active" : "page-btn"}>{idx + 1}</button>
+                <button
+                  key={idx + 1}
+                  onClick={() => setCurrentPage(idx + 1)}
+                  className={
+                    idx + 1 === currentPage ? "page-btn page-btn-active" : "page-btn"
+                  }
+                >
+                  {idx + 1}
+                </button>
               ))}
             </div>
           )}
         </section>
+
+        {/* ✅ 유튜브 섹션: 홈페이지 맨 아래에 배치 */}
+        <YouTubeSection />
       </div>
 
       {isModalOpen && selectedCar && (
@@ -268,3 +436,4 @@ export default function HomePage() {
     </main>
   );
 }
+

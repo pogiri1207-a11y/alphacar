@@ -30,12 +30,17 @@ export class Vehicle extends Document {
 
 export const VehicleSchema = SchemaFactory.createForClass(Vehicle);
 
-// 👈 [추가] TS 오류를 해결하고 ObjectId를 id로 변환하는 로직을 스키마에 직접 적용
+// toJSON 옵션을 스키마에 직접 적용하여 _id를 trimId로 변환
 VehicleSchema.set('toJSON', {
-  virtuals: true,
-  versionKey: false,
-  transform: (doc: any, ret: any) => { // doc, ret 타입을 any로 캐스팅하여 TS2339, TS2790 해결
-    ret.id = ret._id.toString();
-    delete ret._id;
-  },
+    virtuals: true,
+    versionKey: false,
+    transform: (doc: any, ret: any) => { // doc, ret 타입을 any로 캐스팅하여 TS2339, TS2790 해결
+        // 🚨 핵심 수정: ret.id 대신 ret.trimId에 _id 값을 매핑합니다.
+        if (ret._id) {
+            ret.trimId = ret._id.toString(); // _id를 trimId (문자열)로 변환하여 추가
+        }
+        delete ret._id; // 원본 _id 필드 제거
+
+        return ret; // 변환된 객체를 반환
+    },
 });

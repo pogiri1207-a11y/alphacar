@@ -18,7 +18,7 @@ export default function RightSideBar() {
   const fetchCount = async () => {
     try {
       // 1. 로컬 스토리지에서 userId 가져오기
-      const storedUserId = localStorage.getItem("alphacar_user_id");
+      const storedUserId = localStorage.getItem("user_social_id") || localStorage.getItem("alphacar_user_id");
       if (!storedUserId) return; // ID가 없으면 조회하지 않음
 
       // 2. 백엔드에 요청 (userId를 파라미터로 전달해야 함!)
@@ -43,11 +43,10 @@ export default function RightSideBar() {
     const handleUpdate = () => {
       console.log("🔄 배지 업데이트 신호 감지!");
       // Redis 저장 속도 고려하여 아주 살짝 뒤에 조회
-      setTimeout(() => fetchCount(), 100); 
+      setTimeout(() => fetchCount(), 100);
     };
 
     window.addEventListener("vehicleViewed", handleUpdate);
-
     return () => {
       window.removeEventListener("vehicleViewed", handleUpdate);
     };
@@ -114,7 +113,6 @@ export default function RightSideBar() {
           </button>
           {hoverTarget === "top" && renderTooltip("맨 위로")}
         </div>
-
         <div style={dividerStyle} />
 
         {/* 최근 본 차량 (Redis 연동 배지) */}
@@ -218,37 +216,71 @@ export default function RightSideBar() {
         )}
         {isMenuOpen && (
           <div style={{ position: "absolute", top: 0, left: "50%", transform: "translateX(-50%)", width: "120px", backgroundColor: "#ffffff", borderRadius: "14px", boxShadow: "0 8px 24px rgba(0,0,0,0.18)", padding: "10px 0 12px", fontSize: "13px", zIndex: 61, textAlign: "center" }}>
+
             <button type="button" onClick={() => setIsMenuOpen(false)} style={{ border: "none", background: "none", fontSize: "18px", cursor: "pointer", marginBottom: "8px" }}>✕</button>
+
             <div style={{ borderTop: "1px solid #f1f1f1", paddingTop: "6px" }}>
+
               <button type="button" onClick={() => { setIsMenuOpen(false); router.push("/community"); }} style={menuItemStyle}>커뮤니티</button>
+
               <button type="button" onClick={() => { setIsMenuOpen(false); router.push("/mypage/login"); }} style={menuItemStyle}>회원가입</button>
+
               <button type="button" onClick={() => { setIsMenuOpen(false); router.push("/event"); }} style={menuItemStyle}>이벤트</button>
+
             </div>
+
           </div>
+
         )}
+
       </div>
 
+
+
       {/* 상담하기 버튼 */}
+
       <button
+
         type="button"
+
         onClick={() => router.push("/consult")}
+
         onMouseEnter={() => setIsConsultHover(true)}
+
         onMouseLeave={() => setIsConsultHover(false)}
+
         style={{ width: "64px", height: "64px", borderRadius: "999px", border: "none", outline: "none", backgroundColor: "#0F62FE", color: "#ffffff", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "13px", fontWeight: 600, boxShadow: "0 8px 20px rgba(0,0,0,0.25)", cursor: "pointer" }}
+
       >
+
         {isConsultHover ? "상담하기" : (
+
           <svg width="26" height="26" viewBox="0 0 24 24" aria-hidden="true">
+
             <path d="M6 11a6 6 0 0 1 12 0" stroke="#ffffff" strokeWidth="1.8" fill="none" strokeLinecap="round" />
+
             <rect x="4" y="11" width="3" height="6" rx="1.2" stroke="#ffffff" strokeWidth="1.6" fill="none" />
+
             <rect x="17" y="11" width="3" height="6" rx="1.2" stroke="#ffffff" strokeWidth="1.6" fill="none" />
+
             <path d="M9.5 18.5c.5 1.2 1.7 2 3.1 2h1.4" stroke="#ffffff" strokeWidth="1.6" fill="none" strokeLinecap="round" />
+
           </svg>
+
         )}
+
       </button>
+
     </div>
+
   );
+
 }
 
+
+
 const iconButtonStyle = { width: "36px", height: "36px", borderRadius: "999px", border: "none", backgroundColor: "transparent", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", color: "#333333" };
+
 const dividerStyle = { width: "24px", height: "1px", backgroundColor: "#e5e5e5" };
+
 const menuItemStyle = { width: "100%", padding: "8px 0", border: "none", background: "none", cursor: "pointer", fontSize: "13px", color: "#333", textAlign: "center" };

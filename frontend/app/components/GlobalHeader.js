@@ -4,25 +4,20 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
+import SimpleModal from "./SimpleModal";
 
 export default function GlobalHeader() {
-  const [isMenuOpen, setIsMenuOpen] = useState(false);
-  const [userName, setUserName] = useState(null); // 로그인 유저 이름
   const pathname = usePathname(); // 라우트 변경 감지용
 
-  const toggleMenu = () => setIsMenuOpen((prev) => !prev);
-  const closeMenu = () => setIsMenuOpen(false);
-
-  // 🔹 로그인 정보: localStorage의 alphacarUser JSON에서 이름 꺼내오기
-  useEffect(() => {
-    if (typeof window === "undefined") return;
+  // 🔹 localStorage에서 userName 읽어오는 공통 함수
+  const readUserNameFromStorage = () => {
+    if (typeof window === "undefined") return null;
 
     const raw = window.localStorage.getItem("alphacarUser");
-    if (!raw) return; // 없으면 비로그인 → 로그인 해주세요 유지
+    if (!raw) return null;
 
     try {
       const parsed = JSON.parse(raw);
-
       const nickname =
         parsed.nickname ||
         parsed.name ||
@@ -31,19 +26,51 @@ export default function GlobalHeader() {
         parsed.social_id ||
         "ALPHACAR회원";
 
-      setUserName(nickname);
+      return nickname;
     } catch (e) {
       console.error("alphacarUser 파싱 실패:", e);
+      return null;
     }
-  }, []);
+  };
 
-  // 🔹 페이지 이동 시 전체메뉴 자동 닫기
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [userName, setUserName] = useState(() => readUserNameFromStorage());
+  const [showLogoutModal, setShowLogoutModal] = useState(false);
+
+  const toggleMenu = () => setIsMenuOpen((prev) => !prev);
+  const closeMenu = () => setIsMenuOpen(false);
+
+  // 🔹 실제 로그아웃 실행 (모달에서 "로그아웃" 클릭 시)
+  const handleLogoutConfirm = () => {
+    if (typeof window === "undefined") return;
+
+    window.localStorage.removeItem("alphacarUser");
+    window.localStorage.removeItem("accessToken");
+    window.localStorage.removeItem("alphacar_user_id");
+    window.localStorage.removeItem("user_social_id");
+
+    setUserName(null);
+    setShowLogoutModal(false);
+
+    window.location.href = "/";
+  };
+
+  // 🔹 pathname 바뀔 때마다 메뉴 닫고, 로그인 정보 다시 읽기
   useEffect(() => {
     setIsMenuOpen(false);
+
+    const nameFromStorage = readUserNameFromStorage();
+    setUserName(nameFromStorage);
   }, [pathname]);
 
   const HEADER_HEIGHT = 88; // fixed 헤더 높이
   const isLoggedIn = !!userName;
+  // 마이페이지에서는 무조건 로그아웃 보여주기
+  const shouldShowLogout = isLoggedIn || pathname?.startsWith("/mypage");
+
+  // 상단 GNB active 체크용
+  const isTopActive = (target) =>
+    pathname === target || pathname?.startsWith(target);
 
   return (
     <>
@@ -59,7 +86,7 @@ export default function GlobalHeader() {
           boxShadow: "0 2px 4px rgba(0,0,0,0.03)",
         }}
       >
-        {/* 상단: 로그인 / 회원가입 라인 */}
+        {/* 상단: 로그인 / 고객센터 라인 */}
         <div
           style={{
             borderBottom: "1px solid #f2f2f2",
@@ -78,11 +105,32 @@ export default function GlobalHeader() {
               gap: "12px",
             }}
           >
-            <a href="https://192.168.0.160.nip.io:8000/mypage/login">
-              로그인
-            </a>
+            {/* 🔹 로그인 상태 + 마이페이지에서는 무조건 로그아웃 */}
+            {shouldShowLogout ? (
+              <button
+                type="button"
+                onClick={() => setShowLogoutModal(true)}
+                style={{
+                  border: "none",
+                  background: "none",
+                  padding: 0,
+                  margin: 0,
+                  cursor: "pointer",
+                  fontSize: "13px",
+                  color: "#666",
+                }}
+              >
+                로그아웃
+              </button>
+            ) : (
+              <a href="https://192.168.0.160.nip.io:8000/mypage/login">
+                로그인
+              </a>
+            )}
+
             <span style={{ color: "#ddd" }}>|</span>
-            <Link href="/signup">회원가입</Link>
+            {/* 🔹 회원가입 대신 고객센터 */}
+            <Link href="/consult">고객센터</Link>
           </div>
         </div>
 
@@ -147,14 +195,13 @@ export default function GlobalHeader() {
                     alignItems: "center",
                     fontSize: "14px",
                     color: isLoggedIn ? "#111" : "#0070f3",
-                    fontWeight: 400, // 기본은 보통 두께
+                    fontWeight: 400,
                     cursor: isLoggedIn ? "default" : "pointer",
                     opacity: isMenuOpen ? 1 : 0,
                     transform: isMenuOpen
                       ? "translateY(0)"
                       : "translateY(-4px)",
-                    transition:
-                      "opacity 0.2s ease, transform 0.2s ease",
+                    transition: "opacity 0.4s ease, transform 0.4s ease",
                     pointerEvents: isMenuOpen ? "auto" : "none",
                     whiteSpace: "nowrap",
                   }}
@@ -167,7 +214,6 @@ export default function GlobalHeader() {
                 >
                   {isLoggedIn ? (
                     <>
-                      {/* 🔹 이름: 더 진하고 진한 색 */}
                       <span
                         style={{
                           fontWeight: 800,
@@ -177,7 +223,6 @@ export default function GlobalHeader() {
                       >
                         {userName}
                       </span>
-                      {/* 🔹 “님 안녕하세요”: 연하게 */}
                       <span
                         style={{
                           fontWeight: 400,
@@ -188,7 +233,6 @@ export default function GlobalHeader() {
                       </span>
                     </>
                   ) : (
-                    // 비로그인 상태: 로그인 해주세요 (진한 파란색)
                     <span
                       style={{
                         fontWeight: 700,
@@ -200,7 +244,7 @@ export default function GlobalHeader() {
                   )}
                 </div>
 
-                {/* 전체메뉴 닫힌 상태: 견적 비교 / 소식 / 커뮤니티 (진한글씨) */}
+                {/* 전체메뉴 닫힌 상태: 견적 비교 / 소식 / 커뮤니티 */}
                 <nav
                   style={{
                     position: "absolute",
@@ -211,26 +255,48 @@ export default function GlobalHeader() {
                     gap: "20px",
                     fontSize: "15px",
                     color: "#222",
-                    fontWeight: 700, // 🔹 진한 글씨
+                    fontWeight: 700,
                     opacity: isMenuOpen ? 0 : 1,
                     transform: isMenuOpen
                       ? "translateY(4px)"
                       : "translateY(0)",
-                    transition:
-                      "opacity 0.2s ease, transform 0.2s ease",
+                    transition: "opacity 0.4s ease, transform 0.4s ease",
                     pointerEvents: isMenuOpen ? "none" : "auto",
                     whiteSpace: "nowrap",
                   }}
                 >
-                  <Link href="/quote">견적 비교</Link>
-                  <Link href="/news">소식</Link>
-                  <Link href="/community">커뮤니티</Link>
+                  <Link
+                    href="/quote"
+                    className={
+                      "gnb-link" +
+                      (isTopActive("/quote") ? " gnb-link-active" : "")
+                    }
+                  >
+                    견적 비교
+                  </Link>
+                  <Link
+                    href="/news"
+                    className={
+                      "gnb-link" +
+                      (isTopActive("/news") ? " gnb-link-active" : "")
+                    }
+                  >
+                    소식
+                  </Link>
+                  <Link
+                    href="/community"
+                    className={
+                      "gnb-link" +
+                      (isTopActive("/community") ? " gnb-link-active" : "")
+                    }
+                  >
+                    커뮤니티
+                  </Link>
                 </nav>
               </div>
             </div>
 
-            {/* 오른쪽: 전체메뉴 버튼 (≡ <-> ✕) 
-                → 메뉴 글씨보다 덜 진하게 */}
+            {/* 오른쪽: 전체메뉴 버튼 */}
             <button
               type="button"
               onClick={toggleMenu}
@@ -243,7 +309,7 @@ export default function GlobalHeader() {
                 cursor: "pointer",
                 fontSize: "15px",
                 color: "#111111",
-                fontWeight: 500, // 메뉴(700)보다 한 단계 덜 진하게
+                fontWeight: 500,
               }}
             >
               <span>전체메뉴</span>
@@ -275,12 +341,13 @@ export default function GlobalHeader() {
         >
           <div
             onClick={(e) => e.stopPropagation()}
+            className="mega-panel"
             style={{
               marginTop: HEADER_HEIGHT,
               width: "100%",
               borderBottom: "1px solid #e5e7eb",
               backgroundColor: "#ffffff",
-              boxShadow: "0 8px 24px rgba(0,0,0,0.04)",
+              boxShadow: "0 8px 24px rgba(0, 0, 0, 0.04)",
             }}
           >
             <div
@@ -307,7 +374,7 @@ export default function GlobalHeader() {
                   title="견적비교"
                   titleHref="/quote"
                   items={[
-                    { label: "비교견적", href: "/quote" },
+                    { label: "비교견적", href: "/quote/compare" },
                     { label: "개별견적", href: "/quote/personal" },
                   ]}
                 />
@@ -325,15 +392,15 @@ export default function GlobalHeader() {
                   title="커뮤니티"
                   titleHref="/community"
                   items={[
-                    { label: "구매고민", href: "/community/buy" },
-                    { label: "오너리뷰", href: "/community/review" },
+                    { label: "구매고민", href: "/community" },
+                    { label: "오너리뷰", href: "/community" },
                   ]}
                 />
                 <MenuColumn
                   title="이벤트"
                   titleHref="/event"
                   items={[
-                    { label: "진행중 이벤트", href: "/event/ongoing" },
+                    { label: "진행중 이벤트", href: "/event" },
                     { label: "종료된 이벤트", href: "/event/closed" },
                   ]}
                 />
@@ -357,15 +424,15 @@ export default function GlobalHeader() {
                 />
                 <MenuColumn
                   title="상담"
-                  titleHref="/counsel"
-                  items={[{ label: "1:1 상담신청", href: "/counsel/apply" }]}
+                  titleHref="/consult"
+                  items={[{ label: "1:1 상담신청", href: "/consult" }]}
                 />
                 <MenuColumn
                   title="혜택"
                   titleHref="/benefit"
                   items={[
-                    { label: "캐시백", href: "/benefit/cashback" },
-                    { label: "ALPHACAR가이드", href: "/benefit/guide" },
+                    { label: "캐시백", href: "/cashback" },
+                    { label: "ALPHACAR가이드", href: "/benefit" },
                   ]}
                 />
 
@@ -413,6 +480,17 @@ export default function GlobalHeader() {
 
       {/* fixed 헤더 여백 */}
       <div style={{ height: HEADER_HEIGHT }} />
+
+      {/* 🔹 로그아웃 확인 모달 */}
+      <SimpleModal
+        open={showLogoutModal}
+        title="로그아웃"
+        message="로그아웃 하시겠습니까?"
+        confirmText="로그아웃"
+        cancelText="취소"
+        onConfirm={handleLogoutConfirm}
+        onCancel={() => setShowLogoutModal(false)}
+      />
     </>
   );
 }

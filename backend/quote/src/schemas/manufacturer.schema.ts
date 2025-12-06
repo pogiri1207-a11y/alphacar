@@ -1,13 +1,15 @@
+// kevin@devserver:~/alphacar/backend/quote/src/schemas$ cat manufacturer.schema.ts
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
-import { HydratedDocument } from 'mongoose';
+import { Document, Types } from 'mongoose';
 
-export type ManufacturerDocument = HydratedDocument<Manufacturer>;
+export type ManufacturerDocument = Manufacturer & Document;
 
-// 실제 DB 컬렉션 이름: manufacturers
 @Schema({ collection: 'manufacturers' })
 export class Manufacturer {
-  @Prop()
-  name: string; // 제조사명 (예: 현대)
+    _id: Types.ObjectId;
+
+    @Prop({ required: true, unique: true })
+    name: string;
 }
 
 export const ManufacturerSchema = SchemaFactory.createForClass(Manufacturer);

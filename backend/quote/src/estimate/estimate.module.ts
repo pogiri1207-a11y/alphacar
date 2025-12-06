@@ -1,19 +1,19 @@
-// src/estimate/estimate.module.ts
+// kevin@devserver:~/alphacar/backend/quote/src/estimate$ cat estimate.module.ts (수정)
 import { Module } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
+// ✅ 경로 수정: '../schemas/estimate.schema' -> './schemas/estimate.schema'
+import { Estimate, EstimateSchema } from './schemas/estimate.schema'; 
 import { EstimateController } from './estimate.controller';
 import { EstimateService } from './estimate.service';
-import { Estimate, EstimateSchema } from './schemas/estimate.schema';
 
 @Module({
   imports: [
-    // ⭐ estimate_conn 연결에 스키마 등록
-    MongooseModule.forFeature(
-      [{ name: Estimate.name, schema: EstimateSchema }],
-      'estimate_conn' 
-    ),
+    MongooseModule.forFeature([
+      { name: Estimate.name, schema: EstimateSchema },
+    ], 'estimate_conn'), 
   ],
   controllers: [EstimateController],
   providers: [EstimateService],
+  exports: [EstimateService],
 })
 export class EstimateModule {}

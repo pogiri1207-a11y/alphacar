@@ -3,6 +3,20 @@
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState, Suspense } from "react";
 
+// ✅ [추가] 공통: 견고한 HTTP 응답 처리 헬퍼 함수
+const handleApiResponse = async (res) => {
+  if (!res.ok) {
+    let errorData = {};
+    try {
+      errorData = await res.json();
+    } catch (e) {
+      errorData = { message: res.statusText || '서버 응답 오류', status: res.status };
+    }
+    throw new Error(errorData.message || `API 요청 실패 (Status: ${res.status})`);
+  }
+  return res.json();
+};
+
 function CompareVsContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -31,13 +45,15 @@ function CompareVsContent() {
         setLoading(true);
         const baseUrl = "/api";
 
-        const res = await fetch(`${baseUrl}/compare-data?ids=${idsParam}`);
-        if (!res.ok) throw new Error("비교 데이터 로딩 실패");
-
-        const data = await res.json();
+        // ✅ [수정] 백엔드 경로 변경: /compare-data -> /vehicles/compare-data
+        const res = await fetch(`${baseUrl}/vehicles/compare-data?ids=${idsParam}`);
+        
+        // ✅ [수정] 견고한 에러 핸들링 적용
+        const data = await handleApiResponse(res);
+        
         setCars(data);
       } catch (err) {
-        console.error("에러 발생:", err);
+        console.error("에러 발생:", err.message || err);
       } finally {
         setLoading(false);
       }
@@ -163,6 +179,8 @@ function CompareVsContent() {
 
     try {
       const baseUrl = "/api";
+      // /estimate 경로는 next.config.mjs에서 별도로 처리되므로 유지해도 되지만
+      // 일관성을 위해 여기도 체크 필요 (현재는 /api/estimate 로 가정)
       const res = await fetch(`${baseUrl}/estimate`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },

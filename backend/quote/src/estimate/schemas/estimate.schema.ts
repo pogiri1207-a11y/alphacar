@@ -1,30 +1,45 @@
-// src/estimate/schemas/estimate.schema.ts
+// kevin@devserver:~/alphacar/backend/quote/src/schemas$ cat estimate.schema.ts
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
-import { Document } from 'mongoose';
+import { Document, Types } from 'mongoose';
 
 export type EstimateDocument = Estimate & Document;
 
-@Schema({ timestamps: true }) // 생성시간 자동 기록
+@Schema()
+class EstimatedCar {
+    @Prop()
+    manufacturer: string;
+    
+    @Prop()
+    model: string;
+    
+    @Prop()
+    trim: string;
+    
+    @Prop()
+    price: number;
+    
+    @Prop()
+    image: string;
+    
+    @Prop([String])
+    options: string[];
+}
+const EstimatedCarSchema = SchemaFactory.createForClass(EstimatedCar);
+
+
+@Schema({ timestamps: true, collection: 'estimates' })
 export class Estimate {
-  @Prop({ required: true })
-  userId: string; // 사용자 ID (로그인 기능 없으면 하드코딩된 값 사용)
+    @Prop({ required: true, index: true })
+    userId: string; // 사용자 ID (로컬스토리지의 user_social_id)
 
-  @Prop({ required: true })
-  type: string; // 'single' (단일) 또는 'compare' (비교)
+    @Prop({ required: true, enum: ['single', 'compare'] })
+    type: string; // 견적 유형: single 또는 compare
 
-  // 차량 정보 배열 (1대 또는 2대)
-  @Prop({ type: [{ 
-    manufacturer: String,
-    model: String,
-    trim: String,
-    price: Number,
-    options: [String], // 옵션 이름 목록
-    image: String
-  }] })
-  cars: Record<string, any>[]; 
+    @Prop({ required: true })
+    totalPrice: number; // 최종 견적 가격 합계
 
-  @Prop()
-  totalPrice: number; // 총 견적가
+    @Prop({ type: [EstimatedCarSchema], required: true })
+    cars: EstimatedCar[]; // 견적 차량 목록
 }
 
 export const EstimateSchema = SchemaFactory.createForClass(Estimate);

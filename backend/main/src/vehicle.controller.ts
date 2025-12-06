@@ -1,7 +1,7 @@
-import { Controller, Get, Post, Param, Body, Query } from '@nestjs/common';
+import { Controller, Get, Post, Param, Body, Query, HttpException, HttpStatus } from '@nestjs/common';
 import { VehicleService } from './vehicle.service';
 
-@Controller('vehicles')
+@Controller('api/vehicles')
 export class VehicleController {
   constructor(private readonly vehicleService: VehicleService) {}
 
@@ -42,6 +42,28 @@ export class VehicleController {
 
     return await this.vehicleService.addRecentView(finalUserId, vehicleId);
   }
+
+  // ==================================================================
+    // [추가] 상세 견적 페이지 데이터 조회 (프론트엔드 요청 대응)
+    // ==================================================================
+
+    /**
+     * 🚨 [신규 추가] GET /vehicles/detail?trimId=<trimId>
+     * 프론트엔드의 fetch(`${API_BASE}/detail?trimId=${trimId}`) 요청을 처리합니다.
+     */
+    @Get('detail')
+    async getVehicleDetailData(@Query('trimId') trimId: string) {
+        if (!trimId) {
+            // trimId가 없으면 유효한 400 Bad Request JSON 응답
+            throw new HttpException('Trim ID가 쿼리 파라미터로 필요합니다.', HttpStatus.BAD_REQUEST);
+        }
+
+        // Service의 findOne 메서드는 이미 데이터가 없으면 NotFoundException을 던집니다.
+        // Nest.js는 이 Exception을 404 Not Found JSON 응답으로 자동 변환해 줍니다.
+        // 데이터가 있을 경우, vehicle.schema.ts의 toJSON 설정에 따라 trimId가 포함된
+        // 유효한 JSON (200 OK)이 프론트엔드에 전달됩니다.
+        return await this.vehicleService.findOne(trimId);
+    }
 
   // ==================================================================
   // [기존] 범용 경로
