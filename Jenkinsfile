@@ -10,26 +10,44 @@ pipeline {
     }
 
     stages {
+
+        // 1️⃣ 코드 체크아웃
         stage('Checkout Code') {
             steps {
                 git branch: 'main', url: "${GIT_REPO}"
             }
         }
 
+        // 2️⃣ SonarQube 분석 (backend 폴더 기준)
         stage('SonarQube Analysis') {
             steps {
-                withSonarQubeEnv("${SONARQUBE}") {
-                    sh 'mvn clean verify sonar:sonar -Dsonar.projectKey=alphacar'
+                dir('backend') {
+                    withSonarQubeEnv("${SONARQUBE}") {
+                        sh '''
+                        mvn clean verify sonar:sonar \
+                          -Dsonar.projectKey=alphacar \
+                          -Dsonar.projectName=alphacar-backend \
+                          -Dsonar.sources=. \
+                          -Dsonar.java.binaries=target \
+                          -Dsonar.sourceEncoding=UTF-8
+                        '''
+                    }
                 }
             }
         }
 
+        // 3️⃣ Docker 이미지 빌드
         stage('Build Docker Image') {
             steps {
-                sh 'docker build -t ${HARBOR_URL}/${HARBOR_PROJECT}/${IMAGE_NAME}:latest .'
+                dir('backend') {
+                    sh '''
+                    docker build -t ${HARBOR_URL}/${HARBOR_PROJECT}/${IMAGE_NAME}:latest .
+                    '''
+                }
             }
         }
 
+        // 4️⃣ Trivy 보안 스캔
         stage('Trivy Security Scan') {
             steps {
                 script {
@@ -44,6 +62,7 @@ pipeline {
             }
         }
 
+        // 5️⃣ Harbor에 이미지 푸시
         stage('Push to Harbor') {
             steps {
                 withCredentials([usernamePassword(credentialsId: 'harbor-cred', usernameVariable: 'USER', passwordVariable: 'PASS')]) {
@@ -57,9 +76,10 @@ pipeline {
         }
     }
 
+    // 6️⃣ 빌드 결과
     post {
         success {
-            echo "✅ Build and Scan Completed Successfully!"
+            echo "✅ Build, SonarQube Analysis, Trivy Scan, and Harbor Push completed successfully!"
         }
         failure {
             echo "❌ Build Failed! Check SonarQube or Trivy logs for details."
