@@ -8,7 +8,7 @@ import * as fs from 'fs';
 dotenv.config();
 
 async function bootstrap() {
-  console.log('🚀 [Sync & Ingest Fix] 필드명 불일치 해결 및 데이터 동기화 시작...');
+  console.log('🚀 [Final Fix] 트림 ID 매핑 누락 해결 및 데이터 동기화 시작...');
 
   // 1. 기존 벡터 스토어 삭제
   const vectorStorePath = './vector_store';
@@ -26,28 +26,23 @@ async function bootstrap() {
     await client.connect();
     const db = client.db('triple_db');
 
-    // 컬렉션 정의
     const danawaCol = db.collection('danawa_vehicle_data');
     const mfrCol = db.collection('manufacturers');
     const vehCol = db.collection('vehicles');
     const trimCol = db.collection('vehicletrims');
     const optCol = db.collection('vehicleoptions');
 
-    // 최신 데이터 로드
     const newVehicles = await danawaCol.find({}).toArray();
-    console.log(`📦 총 ${newVehicles.length}대의 최신 차량 데이터를 백엔드 DB로 동기화합니다.`);
+    console.log(`📦 총 ${newVehicles.length}대의 최신 차량 데이터를 처리합니다.`);
 
     let successCount = 0;
 
     for (const car of newVehicles as any[]) {
-      process.stdout.write(`🔄 동기화 중: ${car.vehicle_name}... `);
+      process.stdout.write(`🔄 동기화: ${car.vehicle_name}... `);
 
-      // ---------------------------------------------------------
-      // 1️⃣ [Sync] 제조사 (Manufacturers)
-      // ---------------------------------------------------------
+      // 1️⃣ 제조사 동기화
       let mfrId: ObjectId;
       const existingMfr = await mfrCol.findOne({ name: car.brand_name });
-      
       if (existingMfr) {
           mfrId = existingMfr._id;
       } else {
@@ -55,12 +50,8 @@ async function bootstrap() {
           mfrId = res.insertedId;
       }
 
-      // ---------------------------------------------------------
-      // 2️⃣ [Sync] 차량 모델 (Vehicles) - ★ 여기가 수정되었습니다 ★
-      // ---------------------------------------------------------
+      // 2️⃣ 차량 모델 동기화
       let vehId: ObjectId;
-      
-      // DB에 이미 있는지 찾을 때도 두 가지 필드명을 모두 확인합니다.
       const existingVeh = await vehCol.findOne({ 
           $or: [
               { model_name: car.vehicle_name, manufacturer_id: mfrId },
@@ -70,25 +61,18 @@ async function bootstrap() {
 
       if (existingVeh) {
           vehId = existingVeh._id;
-          // 업데이트 시에도 두 필드 모두 최신화
           await vehCol.updateOne({ _id: vehId }, { $set: { 
               image_url: car.main_image,
               model_year: car.model_year,
-              // 혹시 비어있을 수 있으니 채워줌
               name: car.vehicle_name,       
               brand_id: mfrId
           }});
       } else {
-          // ★ [핵심 수정] 인덱스 에러 방지를 위해 필드명을 이중으로 넣습니다.
           const res = await vehCol.insertOne({
-              // NestJS 앱용 필드
               model_name: car.vehicle_name,
               manufacturer_id: mfrId,
-              
-              // DB 인덱스(Unique Key)용 필드 (에러 해결!)
               name: car.vehicle_name,
               brand_id: mfrId,
-              
               image_url: car.main_image,
               model_year: car.model_year,
               created_at: new Date()
@@ -96,9 +80,7 @@ async function bootstrap() {
           vehId = res.insertedId;
       }
 
-      // ---------------------------------------------------------
-      // 3️⃣ [Sync] 트림 및 옵션 (Trims & Options)
-      // ---------------------------------------------------------
+      // 3️⃣ 트림 및 옵션 동기화
       const trims = car.trims || [];
       trims.sort((a: any, b: any) => (a.price || 0) - (b.price || 0));
       
@@ -126,16 +108,15 @@ async function bootstrap() {
               trimId = res.insertedId;
           }
 
+          // ★ [핵심 수정] 생성된 진짜 ID를 객체에 저장해둡니다. (나중에 텍스트 만들 때 씀)
+          t.legacy_id = trimId.toString();
+
           if (i === 0) baseTrimIdStr = trimId.toString();
 
           // 옵션 동기화
           if (t.options && t.options.length > 0) {
               for (const o of t.options) {
-                  const existingOpt = await optCol.findOne({ 
-                      trim_id: trimId, 
-                      name: o.option_name 
-                  });
-                  
+                  const existingOpt = await optCol.findOne({ trim_id: trimId, name: o.option_name });
                   if (!existingOpt) {
                       await optCol.insertOne({
                           trim_id: trimId,
@@ -149,16 +130,16 @@ async function bootstrap() {
           }
       }
 
-      // ---------------------------------------------------------
-      // 4️⃣ [Embedding] 임베딩 수행
-      // ---------------------------------------------------------
+      // 4️⃣ 임베딩 데이터 생성
       const formatPrice = (p: number) => !p ? '가격 미정' : Math.round(p / 10000).toLocaleString() + '만원';
-      
       const prices = trims.map((t: any) => t.price).filter((p: any) => typeof p === 'number');
       const minPrice = prices.length > 0 ? Math.min(...prices) : 0;
       const maxPrice = prices.length > 0 ? Math.max(...prices) : 0;
 
-      const trimInfo = trims.map((t: any) => `- ${t.trim_name}: ${formatPrice(t.price)}`).join('\n        ');
+      // ★ [핵심 수정] 텍스트 생성 시 저장해둔 legacy_id를 포함시킵니다.
+      const trimInfo = trims.map((t: any) => 
+          `- ${t.trim_name} (ID: ${t.legacy_id}): ${formatPrice(t.price)}`
+      ).join('\n        ');
 
       let optionText = '옵션 정보 없음';
       if (trims[0]?.options?.length > 0) {
@@ -192,7 +173,7 @@ async function bootstrap() {
 
         ${specText}
 
-        [트림별 가격 정보]
+        [트림별 상세 정보 (ID 포함)]
         ${trimInfo}
 
         ${optionText}
@@ -205,11 +186,11 @@ async function bootstrap() {
       const source = `car-${car._id}`;
       await chatService.addKnowledge(finalKnowledge, source);
       
-      process.stdout.write(`✅ OK (ID: ${baseTrimIdStr})\n`);
+      process.stdout.write(`✅ (BaseID: ${baseTrimIdStr})\n`);
       successCount++;
     }
 
-    console.log(`\n🎉 작업 완료! 총 ${successCount}대의 차량이 에러 없이 동기화되었습니다.`);
+    console.log(`\n🎉 완료! 이제 챗봇은 모든 트림의 진짜 ID를 알게 되었습니다.`);
 
   } catch (error) {
     console.error('❌ 에러 발생:', error);

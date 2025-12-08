@@ -10,6 +10,7 @@ export default function RightSideBar() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isConsultHover, setIsConsultHover] = useState(false);
   const [recentCount, setRecentCount] = useState(0);
+  const [isNarrow, setIsNarrow] = useState(false);
 
   const router = useRouter();
   const BACKEND_URL = "/api";
@@ -35,6 +36,12 @@ export default function RightSideBar() {
   };
 
   useEffect(() => {
+    const handleResize = () => {
+      setIsNarrow(window.innerWidth < 1100);
+    };
+    handleResize();
+    window.addEventListener("resize", handleResize);
+
     fetchCount();
 
     const handleUpdate = () => {
@@ -44,6 +51,7 @@ export default function RightSideBar() {
 
     window.addEventListener("vehicleViewed", handleUpdate);
     return () => {
+      window.removeEventListener("resize", handleResize);
       window.removeEventListener("vehicleViewed", handleUpdate);
     };
   }, []);
@@ -72,8 +80,12 @@ export default function RightSideBar() {
     <div
       style={{
         position: "fixed",
-        right: "24px",
-        bottom: "110px",
+        right: isNarrow ? "16px" : "24px",
+        
+        // AI 챗봇 버튼 높이에 맞춰 동일한 Y 위치로 조정
+        bottom: "32px",
+        
+        width: "64px",
         zIndex: 60,
         display: "flex",
         flexDirection: "column",
@@ -81,6 +93,7 @@ export default function RightSideBar() {
         gap: "12px",
       }}
     >
+      {/* 메뉴 버튼 그룹 */}
       <div
         style={{
           backgroundColor: "#ffffff",
@@ -91,6 +104,7 @@ export default function RightSideBar() {
           flexDirection: "column",
           alignItems: "center",
           gap: "10px",
+          width: "50px",
         }}
       >
         {/* TOP */}
@@ -170,10 +184,13 @@ export default function RightSideBar() {
         <div style={{ position: "relative" }}>
           <button
             type="button"
-            onClick={() => router.push("/favorite")} // 🔹 여기서 찜 페이지로 이동
+            onClick={() => router.push("/favorite")}
             onMouseEnter={() => setHoverTarget("favorite")}
             onMouseLeave={() => setHoverTarget(null)}
-            style={iconButtonStyle}
+            style={{
+              ...iconButtonStyle,
+              color: "#111111", // 하트 진하게 유지
+            }}
           >
             <span style={{ fontSize: "16px" }}>♡</span>
           </button>
@@ -213,12 +230,15 @@ export default function RightSideBar() {
         </div>
       </div>
 
-      {/* 메뉴 */}
+      {/* 메뉴 (••• 버튼 및 팝업) */}
       <div
         style={{
           position: "relative",
           height: isMenuOpen ? 150 : 46,
           transition: "height 0.2s ease-out",
+          width: "100%",
+          display: "flex",
+          justifyContent: "center",
         }}
       >
         {!isMenuOpen && (
@@ -255,7 +275,7 @@ export default function RightSideBar() {
               top: 0,
               left: "50%",
               transform: "translateX(-50%)",
-              width: "120px",
+              width: "140px",
               backgroundColor: "#ffffff",
               borderRadius: "14px",
               boxShadow: "0 8px 24px rgba(0,0,0,0.18)",
@@ -263,6 +283,7 @@ export default function RightSideBar() {
               fontSize: "13px",
               zIndex: 61,
               textAlign: "center",
+              overflow: "hidden",
             }}
           >
             <button
@@ -322,10 +343,10 @@ export default function RightSideBar() {
         )}
       </div>
 
-      {/* 상담하기 버튼 */}
+      {/* 고객센터 버튼 (항상 표시, 메뉴 열릴 때 위로 이동) */}
       <button
         type="button"
-        onClick={() => router.push("/consult")}
+        onClick={() => router.push("/customer-center")}
         onMouseEnter={() => setIsConsultHover(true)}
         onMouseLeave={() => setIsConsultHover(false)}
         style={{
@@ -343,49 +364,52 @@ export default function RightSideBar() {
           fontWeight: 600,
           boxShadow: "0 8px 20px rgba(0,0,0,0.25)",
           cursor: "pointer",
+          position: "relative",
+          bottom: isMenuOpen ? "150px" : "0px",
+          transition: "bottom 0.2s ease-out",
         }}
       >
-        {isConsultHover ? (
-          "상담하기"
-        ) : (
-          <svg width="26" height="26" viewBox="0 0 24 24" aria-hidden="true">
-            <path
-              d="M6 11a6 6 0 0 1 12 0"
-              stroke="#ffffff"
-              strokeWidth="1.8"
-              fill="none"
-              strokeLinecap="round"
-            />
-            <rect
-              x="4"
-              y="11"
-              width="3"
-              height="6"
-              rx="1.2"
-              stroke="#ffffff"
-              strokeWidth="1.6"
-              fill="none"
-            />
-            <rect
-              x="17"
-              y="11"
-              width="3"
-              height="6"
-              rx="1.2"
-              stroke="#ffffff"
-              strokeWidth="1.6"
-              fill="none"
-            />
-            <path
-              d="M9.5 18.5c.5 1.2 1.7 2 3.1 2h1.4"
-              stroke="#ffffff"
-              strokeWidth="1.6"
-              fill="none"
-              strokeLinecap="round"
-            />
-          </svg>
-        )}
-      </button>
+          {isConsultHover ? (
+            "고객센터"
+          ) : (
+            <svg width="26" height="26" viewBox="0 0 24 24" aria-hidden="true">
+              <path
+                d="M6 11a6 6 0 0 1 12 0"
+                stroke="#ffffff"
+                strokeWidth="1.8"
+                fill="none"
+                strokeLinecap="round"
+              />
+              <rect
+                x="4"
+                y="11"
+                width="3"
+                height="6"
+                rx="1.2"
+                stroke="#ffffff"
+                strokeWidth="1.6"
+                fill="none"
+              />
+              <rect
+                x="17"
+                y="11"
+                width="3"
+                height="6"
+                rx="1.2"
+                stroke="#ffffff"
+                strokeWidth="1.6"
+                fill="none"
+              />
+              <path
+                d="M9.5 18.5c.5 1.2 1.7 2 3.1 2h1.4"
+                stroke="#ffffff"
+                strokeWidth="1.6"
+                fill="none"
+                strokeLinecap="round"
+              />
+            </svg>
+          )}
+        </button>
     </div>
   );
 }
@@ -419,4 +443,3 @@ const menuItemStyle = {
   color: "#333",
   textAlign: "center",
 };
-

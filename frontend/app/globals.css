@@ -4,6 +4,9 @@
    - 포인트: 블루 (#0066ff)
 =========================== */
 
+/* Pretendard 폰트 로드 */
+@import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css');
+
 /* 공통 컬러 변수 */
 :root {
   --color-bg: #ffffff;        /* 전체 배경 */
@@ -21,10 +24,12 @@
 }
 
 body {
-  font-family: -apple-system, BlinkMacSystemFont, "Noto Sans KR", system-ui,
+  font-family: "Pretendard Variable", "Pretendard", -apple-system, BlinkMacSystemFont, "Noto Sans KR", system-ui,
     sans-serif;
   background-color: var(--color-bg); /* ✅ 회색 → 완전 흰색 */
   color: var(--color-text);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
 a {
@@ -271,18 +276,33 @@ a {
   margin-top: 32px;
 }
 
-/* 브랜드 버튼 9개씩 3줄로 정렬 */
+/* 브랜드 버튼 그리드 - 창 크기에 맞게 조정 */
 .brand-tabs {
   display: grid;
-  grid-template-columns: repeat(9, minmax(0, 1fr));
-  gap: 8px;
+  grid-template-columns: repeat(auto-fit, minmax(90px, 1fr));
+  gap: 12px;
+  width: 100%;
 }
 
-/* 기본 브랜드 버튼: 검색창 스타일 (회색 테두리) */
+@media (max-width: 1200px) {
+  .brand-tabs {
+    grid-template-columns: repeat(auto-fit, minmax(85px, 1fr));
+    gap: 10px;
+  }
+}
+
+@media (max-width: 768px) {
+  .brand-tabs {
+    grid-template-columns: repeat(auto-fit, minmax(75px, 1fr));
+    gap: 8px;
+  }
+}
+
+/* 기본 브랜드 버튼: 로고 이미지 + 브랜드명 세로 배치 */
 .brand-btn {
   width: 100%;
-  padding: 6px 14px;
-  border-radius: 999px;
+  padding: 12px 8px;
+  border-radius: 12px;
   border: 1px solid #e5e7eb;   /* 기본 연한 회색 테두리 */
   background-color: #ffffff;
   color: #111111;
@@ -290,12 +310,20 @@ a {
   cursor: pointer;
   text-align: center;
   transition: all 0.15s ease;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 90px;
 }
 
 /* 호버 시: 테두리/글씨만 파란색 */
 .brand-btn:hover {
   border-color: #2563eb;
   color: #2563eb;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(37, 99, 235, 0.1);
 }
 
 /* 선택된 브랜드: 파란 테두리 + 파란 글씨 (배경은 흰색 유지) */
@@ -303,6 +331,15 @@ a {
   border-color: #2563eb;
   color: #2563eb;
   font-weight: 600;
+  background-color: #f0f8ff;
+}
+
+/* 브랜드 로고 이미지 스타일 */
+.brand-btn img {
+  width: 40px;
+  height: 40px;
+  object-fit: contain;
+  margin-bottom: 4px;
 }
 
 /* 차량 리스트 */

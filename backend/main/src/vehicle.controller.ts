@@ -34,6 +34,10 @@ export class VehicleController {
     }
     try {
       const result = await this.vehicleService.findOneByTrimId(trimId);
+      if (!result) {
+        console.error(`[Controller] ❌ 데이터를 찾을 수 없습니다: ${trimId}`);
+        throw new NotFoundException(`해당 트림(${trimId}) 정보를 찾을 수 없습니다.`);
+      }
       console.log(`[Controller] ✅ 데이터 조회 성공. 응답을 보냅니다.`);
       return result;
     } catch (error) {

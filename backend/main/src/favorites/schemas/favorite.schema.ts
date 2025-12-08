@@ -1,7 +1,7 @@
 // src/favorites/schemas/favorite.schema.ts
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { Document, Types } from 'mongoose';
-import { Vehicle } from '../../schemas/vehicle.schema'; // 기존 Vehicle 스키마 경로 확인 필요
+import { Vehicle } from '../../../schemas/vehicle.schema'; // 기존 Vehicle 스키마 경로 확인 필요
 
 @Schema({ collection: 'favorites' })
 export class Favorite extends Document {

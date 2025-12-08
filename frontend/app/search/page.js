@@ -38,21 +38,35 @@ function SearchContent() {
         console.log("DB 데이터 확인:", data);
 
         // [핵심 수정] 백엔드의 간소화된 데이터를 UI가 기대하는 기존 DB 구조로 변환 (Adapter)
-        // 백엔드 응답: { id, name, image, priceRange }
+        // 백엔드 응답: { id, name, image, priceRange, releaseDate, displacement, fuelEfficiency }
         // UI 기대값: { _id, vehicle_name, manufacturer, photos..., specifications... }
         if (data.result && Array.isArray(data.result.cars)) {
           const adaptedCars = data.result.cars.map((item) => {
-            // 가격 문자열("3,712만원")을 숫자(37120000)로 변환하여 formatPrice 함수가 작동하도록 함
-            let priceNum = 0;
-            if (item.priceRange) {
-              const numStr = item.priceRange.replace(/[^0-9]/g, ""); // 숫자만 추출
-              priceNum = numStr ? parseInt(numStr, 10) * 10000 : 0;
+            // 가격 범위 파싱 (예: "1,441만원 ~ 2,003만원" 또는 "2,560만원")
+            let minPrice = 0;
+            let maxPrice = 0;
+            if (item.priceRange && item.priceRange !== '가격 정보 없음') {
+              const priceParts = item.priceRange.split(' ~ ');
+              const minStr = priceParts[0].replace(/[^0-9]/g, "");
+              minPrice = minStr ? parseInt(minStr, 10) * 10000 : 0;
+              if (priceParts.length > 1) {
+                const maxStr = priceParts[1].replace(/[^0-9]/g, "");
+                maxPrice = maxStr ? parseInt(maxStr, 10) * 10000 : 0;
+              } else {
+                maxPrice = minPrice;
+              }
             }
+
+            // 제조사 추출 (예: "[현대] 쏘나타" -> "현대")
+            const manufacturerMatch = item.name.match(/\[([^\]]+)\]/);
+            const manufacturer = manufacturerMatch ? manufacturerMatch[1] : "검색결과";
 
             return {
               _id: item.id,
               vehicle_name: item.name, // 예: "[현대] 그랜저"
-              manufacturer: "검색결과", // 제조사 정보가 이름에 포함되어 있으므로 임시 처리
+              manufacturer: manufacturer,
+              brandName: item.brandName || manufacturer,
+              logoUrl: item.logoUrl || '',
               model_year: "-", // 연식 정보 없음
               fuel_type: "정보없음", // 연료 정보 없음
               photos: {
@@ -63,13 +77,21 @@ function SearchContent() {
               summary: {
                 category: "검색",
                 price_range: {
-                  min: priceNum, // 변환된 가격 숫자
+                  min: minPrice,
+                  max: maxPrice,
                 },
               },
-              // 상세 제원 정보가 없으므로 빈 객체로 처리하여 에러 방지 ("-"로 표시됨)
+              // 상세 제원 정보 (출시일, 배기량, 복합연비 포함)
+              release_date: item.releaseDate || null,
+              displacement: item.displacement || null,
+              fuel_efficiency: item.fuelEfficiency || null,
               specifications: {
-                fuel_efficiency: { combined: "-" },
-                engine: { type: "-", displacement: "-", max_power: "-" },
+                fuel_efficiency: { combined: item.fuelEfficiency || "-" },
+                engine: { 
+                  type: "-", 
+                  displacement: item.displacement || "-", 
+                  max_power: "-" 
+                },
               },
             };
           });
@@ -209,48 +231,39 @@ function SearchContent() {
                 }}
               >
                 <div>
-                  {/* 브랜드 & 차급 배지 */}
+                  {/* 브랜드 로고 배지 */}
                   <div
                     style={{
                       display: "flex",
                       gap: "8px",
                       marginBottom: "10px",
+                      alignItems: "center",
                     }}
                   >
-                    <span
-                      style={{
-                        fontSize: "12px",
-                        fontWeight: "bold",
-                        color: "#fff",
-                        background: "#333",
-                        padding: "4px 8px",
-                        borderRadius: "4px",
-                      }}
-                    >
-                      {car.manufacturer}
-                    </span>
-                    <span
-                      style={{
-                        fontSize: "12px",
-                        color: "#555",
-                        background: "#eee",
-                        padding: "4px 8px",
-                        borderRadius: "4px",
-                      }}
-                    >
-                      {car.summary?.category}
-                    </span>
-                    <span
-                      style={{
-                        fontSize: "12px",
-                        color: "#0070f3",
-                        background: "#e6f7ff",
-                        padding: "4px 8px",
-                        borderRadius: "4px",
-                      }}
-                    >
-                      {car.fuel_type || "연료 정보 없음"}
-                    </span>
+                    {car.logoUrl ? (
+                      <img
+                        src={car.logoUrl}
+                        alt={car.brandName || car.manufacturer}
+                        style={{
+                          height: "24px",
+                          maxWidth: "80px",
+                          objectFit: "contain",
+                        }}
+                      />
+                    ) : (
+                      <span
+                        style={{
+                          fontSize: "12px",
+                          fontWeight: "bold",
+                          color: "#fff",
+                          background: "#333",
+                          padding: "4px 8px",
+                          borderRadius: "4px",
+                        }}
+                      >
+                        {car.brandName || car.manufacturer}
+                      </span>
+                    )}
                   </div>
 
                   {/* 차량 이름 & 가격 */}
@@ -288,65 +301,61 @@ function SearchContent() {
                         margin: "0",
                       }}
                     >
-                      {formatPrice(car.summary?.price_range?.min)} ~
+                      {car.summary?.price_range?.min 
+                        ? (car.summary.price_range.max && car.summary.price_range.max > car.summary.price_range.min
+                          ? `${formatPrice(car.summary.price_range.min)} ~ ${formatPrice(car.summary.price_range.max)}`
+                          : formatPrice(car.summary.price_range.min))
+                        : "가격 정보 없음"}
                     </p>
                   </div>
 
-                  {/* 상세 제원 그리드 */}
+                  {/* 제원 정보 그리드 (구매 가격, 출시일, 배기량, 복합연비) */}
                   <div
                     style={{
                       display: "grid",
                       gridTemplateColumns: "1fr 1fr",
-                      gap: "10px",
+                      gap: "12px",
                       marginTop: "20px",
                       backgroundColor: "#f9f9f9",
                       padding: "15px",
                       borderRadius: "8px",
                     }}
                   >
-                    <div style={{ fontSize: "14px", color: "#555" }}>
-                      <span
-                        style={{
-                          color: "#888",
-                          marginRight: "8px",
-                        }}
-                      >
-                        복합연비
-                      </span>
-                      {car.specifications?.fuel_efficiency?.combined || "-"}
+                    <div>
+                      <p style={{ fontSize: "12px", color: "#888", marginBottom: "4px", margin: "0 0 4px 0" }}>
+                        구매 가격
+                      </p>
+                      <p style={{ fontSize: "16px", fontWeight: "bold", color: "#0070f3", margin: "0" }}>
+                        {car.summary?.price_range?.min 
+                          ? (car.summary.price_range.max && car.summary.price_range.max > car.summary.price_range.min
+                            ? `${formatPrice(car.summary.price_range.min)} ~ ${formatPrice(car.summary.price_range.max)}`
+                            : formatPrice(car.summary.price_range.min))
+                          : "정보 없음"}
+                      </p>
                     </div>
-                    <div style={{ fontSize: "14px", color: "#555" }}>
-                      <span
-                        style={{
-                          color: "#888",
-                          marginRight: "8px",
-                        }}
-                      >
-                        엔진형식
-                      </span>
-                      {car.specifications?.engine?.type || "-"}
+                    <div>
+                      <p style={{ fontSize: "12px", color: "#888", marginBottom: "4px", margin: "0 0 4px 0" }}>
+                        출시일
+                      </p>
+                      <p style={{ fontSize: "14px", fontWeight: 600, color: "#333", margin: "0" }}>
+                        {car.release_date || "정보 없음"}
+                      </p>
                     </div>
-                    <div style={{ fontSize: "14px", color: "#555" }}>
-                      <span
-                        style={{
-                          color: "#888",
-                          marginRight: "8px",
-                        }}
-                      >
+                    <div>
+                      <p style={{ fontSize: "12px", color: "#888", marginBottom: "4px", margin: "0 0 4px 0" }}>
                         배기량
-                      </span>
-                      {car.specifications?.engine?.displacement || "-"}
+                      </p>
+                      <p style={{ fontSize: "14px", fontWeight: 600, color: "#333", margin: "0" }}>
+                        {car.displacement || "정보 없음"}
+                      </p>
                     </div>
-                    <div style={{ fontSize: "14px", color: "#555" }}>
-                      <span
-                        style={{
-                          color: "#888",
-                          marginRight: "8px",
-                        }}
-                      >
-                        최고출력
-                      </span>
-                      {car.specifications?.engine?.max_power || "-"}
+                    <div>
+                      <p style={{ fontSize: "12px", color: "#888", marginBottom: "4px", margin: "0 0 4px 0" }}>
+                        복합연비
+                      </p>
+                      <p style={{ fontSize: "14px", fontWeight: 600, color: "#333", margin: "0" }}>
+                        {car.fuel_efficiency || "정보 없음"}
+                      </p>
                     </div>
                   </div>
                 </div>

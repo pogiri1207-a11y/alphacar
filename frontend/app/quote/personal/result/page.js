@@ -21,7 +21,8 @@ const parsePrice = (opt) => {
   return 0;
 };
 
-// 🚨 응답 상태를 체크하고 JSON 파싱 오류를 방지하는 헬퍼 함수
+// 🚨 [수정 1] 응답 상태를 체크하고 JSON 파싱 오류를 방지하는 헬퍼 함수
+// Promise.reject를 사용하여 catch 블록에 오류 객체를 던집니다.
 const handleApiResponse = async (res) => {
   if (!res.ok) {
     let errorData = {};
@@ -35,7 +36,8 @@ const handleApiResponse = async (res) => {
         status: res.status
       };
     }
-    return Promise.reject(errorData);
+    // 오류 발생 시 errorData 객체를 통째로 던집니다.
+    return Promise.reject(errorData); 
   }
   return res.json();
 };
@@ -65,55 +67,42 @@ export default function QuoteResultPage() {
       setLoading(true);
       setError(null);
       try {
-        // API 호출
+        // API 호출: trimId에 lineup_id가 넘어올 것을 기대합니다.
         const res = await fetch(`${API_BASE}/vehicles/detail?trimId=${trimId}`);
-        const rawVehicleData = await handleApiResponse(res); // 전체 Vehicle 데이터
+        const rawVehicleData = await handleApiResponse(res); 
 
-        // --- [핵심 수정] 트림 데이터 추출 및 병합 로직 ---
+        // --- [핵심 수정 2] 트림 데이터 추출 및 병합 로직 단순화 ---
         let selectedTrim = null;
         const trims = rawVehicleData.trims || [];
         let mergedDetail;
 
+        // 트림 배열이 존재하면 첫 번째 트림을 선택
         if (trims.length > 0) {
-            const decodedTrimId = decodeURIComponent(trimId);
-            
-            // 1. 이름으로 정확히 일치하는 트림 찾기 (String ID 대응)
-            selectedTrim = trims.find(t => t.trim_name === decodedTrimId);
-
-            // 2. ID로 찾기 (Fallback)
-            if (!selectedTrim) {
-              selectedTrim = trims.find(t => t._id === trimId || t.trim_id === trimId);
-            }
-
-            // 3. Fallback: 여전히 못 찾았다면 첫 번째 트림 사용
-            if (!selectedTrim) {
-              selectedTrim = trims[0]; 
-            }
+            selectedTrim = trims[0]; 
         }
         
         if (selectedTrim) {
-            // 트림을 찾은 경우, Vehicle 정보와 트림 정보를 병합 (base_price, name, options 덮어쓰기)
+            // 트림을 찾은 경우, Vehicle 정보와 트림 정보를 병합
             mergedDetail = {
                 ...rawVehicleData, // 상위 정보 유지
-                name: selectedTrim.trim_name, // ✅ 트림명 덮어쓰기
-                base_price: selectedTrim.price, // ✅ 트림 가격 덮어쓰기 (basePrice 계산에 사용됨)
+                name: selectedTrim.trim_name, // ✅ 트림명 덮어쓰기 (UI 표시용)
+                base_price: selectedTrim.price, // ✅ 트림 가격 덮어쓰기
                 options: selectedTrim.options || [], // ✅ 옵션 배열 덮어쓰기
             };
         } else {
-            // 트림을 찾지 못한 경우 (최악의 경우), 기본 Vehicle 정보만 사용
+            // 트림이 없는 경우, 기본 Vehicle 정보만 사용
             mergedDetail = rawVehicleData;
+            mergedDetail.options = rawVehicleData.options || [];
         }
 
         setCarDetail(mergedDetail);
 
-        // --- 옵션 리스트 매핑 (여기가 핵심) ---
-        // 옵션 매핑 시, 병합된 데이터의 options 배열을 사용해야 합니다.
-        const rawOptions = mergedDetail.options || mergedDetail.selected_options || []; 
+        // --- 옵션 리스트 매핑 ---
+        const rawOptions = mergedDetail.options || mergedDetail.selected_options || [];
 
         const mapped = rawOptions.map((opt, idx) => ({
           id: opt._id || idx,
           name: opt.name || opt.option_name || opt.item_name || "옵션명 없음",
-          // 위에서 만든 parsePrice 함수로 가격을 확실하게 추출
           price: parsePrice(opt),
           isSelected: typeof opt.is_selected === "boolean" ? opt.is_selected : false,
         }));
@@ -121,6 +110,7 @@ export default function QuoteResultPage() {
         setOptions(mapped);
 
       } catch (err) {
+        // 🚨 [수정 3] err 객체에서 message를 정확하게 추출합니다.
         const msg = err.message || `API 요청 실패 (Status: ${err.status})`;
         console.error("🚨 데이터 로드 중 오류 발생:", err);
         setError(msg);
@@ -375,56 +365,56 @@ export default function QuoteResultPage() {
             </span>
           </div>
 
-          {/* 3. 옵션 리스트 */}
-          <div style={{ fontSize: "14px", marginBottom: "20px" }}>
-            <div style={{ fontWeight: 700, marginBottom: "10px" }}>
-              옵션 선택 ({options.filter(o => o.isSelected).length})
-            </div>
+          {/* 3. 옵션 리스트 */}
+          <div style={{ fontSize: "13px", marginBottom: "20px" }}>
+            <div style={{ fontWeight: 700, marginBottom: "8px", fontSize: "14px" }}>
+              옵션 선택 ({options.filter(o => o.isSelected).length})
+            </div>
 
-            <div
-              style={{
-                borderRadius: "12px",
-                border: "1px solid #eee",
-                padding: "10px 0",
-                maxHeight: "350px",
-                overflowY: "auto",
-              }}
-            >
-               {options.length === 0 ? (
-                  <div style={{ padding: "20px", textAlign: "center", color: "#999" }}>선택 가능한 옵션이 없습니다.</div>
-               ) : (
-                options.map((opt) => (
-                  <div
-                    key={opt.id}
-                    onClick={() => toggleOption(opt.id)}
-                    style={{
-                      display: "flex",
-                      alignItems: "center",
-                      padding: "10px 18px",
-                      borderBottom: "1px solid #f5f5f5",
-                      cursor: "pointer",
-                      backgroundColor: opt.isSelected ? "#fdfdfd" : "#fff"
-                    }}
-                  >
-                    <input
-                      type="checkbox"
-                      checked={opt.isSelected}
-                      readOnly
-                      style={{ marginRight: "12px", cursor: "pointer", width: "16px", height: "16px" }}
-                    />
-                    <span style={{ flex: 1, fontWeight: opt.isSelected ? 600 : 400 }}>{opt.name}</span>
-                    <span style={{ fontSize: "13px", color: opt.isSelected ? "#333" : "#777", fontWeight: opt.isSelected ? 600 : 400 }}>
-                      {/* 가격이 0원보다 크면 표시, 아니면 '포함' 또는 '0원' 표시 */}
-                      {opt.price > 0 ? `+${opt.price.toLocaleString()}원` : "0원"}
-                    </span>
-                  </div>
-                ))
-               )}
-            </div>
-             {/* 옵션 합계 표시 */}
-             <div style={{ textAlign: "right", marginTop: "8px", fontSize: "13px", color: "#666" }}>
-                옵션 합계: <span style={{ fontWeight: 700 }}>{optionsTotal.toLocaleString()}원</span>
-            </div>
+            <div
+              style={{
+                borderRadius: "12px",
+                border: "1px solid #eee",
+                padding: "6px 0",
+                maxHeight: "120px",
+                overflowY: "auto",
+              }}
+            >
+               {options.length === 0 ? (
+                 <div style={{ padding: "12px", textAlign: "center", color: "#999", fontSize: "12px" }}>선택 가능한 옵션이 없습니다.</div>
+              ) : (
+                options.map((opt) => (
+                  <div
+                    key={opt.id}
+                    onClick={() => toggleOption(opt.id)}
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      padding: "6px 12px",
+                      borderBottom: "1px solid #f5f5f5",
+                      cursor: "pointer",
+                      backgroundColor: opt.isSelected ? "#fdfdfd" : "#fff"
+                    }}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={opt.isSelected}
+                      readOnly
+                      style={{ marginRight: "10px", cursor: "pointer", width: "14px", height: "14px", accentColor: "#2563eb" }}
+                    />
+                    <span style={{ flex: 1, fontWeight: opt.isSelected ? 600 : 400, fontSize: "12px" }}>{opt.name}</span>
+                    <span style={{ fontSize: "11px", color: opt.isSelected ? "#1d4ed8" : "#666", fontWeight: opt.isSelected ? 700 : 400 }}>
+                      {/* 가격이 0원보다 크면 표시, 아니면 '포함' 또는 '0원' 표시 */}
+                      {opt.price > 0 ? `+${opt.price.toLocaleString()}원` : "0원"}
+                    </span>
+                  </div>
+                ))
+              )}
+            </div>
+           {/* 옵션 합계 표시 */}
+           <div style={{ textAlign: "right", marginTop: "6px", fontSize: "12px", color: "#666" }}>
+              옵션 합계: <span style={{ fontWeight: 700 }}>{optionsTotal.toLocaleString()}원</span>
+           </div>
           </div>
 
           {/* 4. 최종 차량가 */}

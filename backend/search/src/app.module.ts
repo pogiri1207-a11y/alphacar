@@ -4,7 +4,6 @@ import { MongooseModule } from '@nestjs/mongoose';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { Vehicle, VehicleSchema } from './vehicle.schema';
-import { Manufacturer, ManufacturerSchema } from './manufacturer.schema';
 
 @Module({
   imports: [
@@ -17,10 +16,9 @@ import { Manufacturer, ManufacturerSchema } from './manufacturer.schema';
       }),
       inject: [ConfigService],
     }),
-    // Vehicle, Manufacturer 모델 등록
+    // Vehicle 모델 등록 (danawa_vehicle_data 컬렉션)
     MongooseModule.forFeature([
       { name: Vehicle.name, schema: VehicleSchema },
-      { name: Manufacturer.name, schema: ManufacturerSchema },
     ]),
   ],
   controllers: [AppController],

@@ -9,7 +9,7 @@ import { AppService } from './app.service';
 import { RecentViewController } from './recent-view.controller';
 
 // [수정 1] 경로 변경: ./vehicle.schema -> ../schemas/vehicle.schema
-import { Vehicle, VehicleSchema } from './schemas/vehicle.schema';
+import { Vehicle, VehicleSchema } from '../schemas/vehicle.schema';
 // Manufacturer는 아직 공통으로 안 뺐다면 그대로 유지, 뺐다면 경로 수정 필요
 import { Manufacturer, ManufacturerSchema } from './manufacturer.schema';
 

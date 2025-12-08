@@ -10,8 +10,8 @@ const DEFAULT_HEIGHT = 620;
 export default function AiChatButton() {
   const [open, setOpen] = useState(false);
   const [isNarrow, setIsNarrow] = useState(false);
-  const [isHoveringButton, setIsHoveringButton] = useState(false);
   const [isPressed, setIsPressed] = useState(false);
+  const [isHoveringButton, setIsHoveringButton] = useState(false);
 
   const [position, setPosition] = useState({ x: 0, y: 0 });
   const [size, setSize] = useState({
@@ -37,6 +37,17 @@ export default function AiChatButton() {
   const [previewUrl, setPreviewUrl] = useState(null);
   const fileInputRef = useRef(null);
   const scrollRef = useRef(null);
+
+  // 외부에서 챗봇 열기 트리거
+  useEffect(() => {
+    const openHandler = () => {
+      if (!open) {
+        handleToggleOpen();
+      }
+    };
+    window.addEventListener("openAiChat", openHandler);
+    return () => window.removeEventListener("openAiChat", openHandler);
+  }, [open]);
 
   // ─────────────────────────────
   //  공통 상수
@@ -125,8 +136,14 @@ export default function AiChatButton() {
       normalPosRef.current = { ...position };
       normalSizeRef.current = { ...size };
 
-      const targetWidth = Math.min(window.innerWidth * 0.6, window.innerWidth - 16);
-      const targetHeight = Math.min(window.innerHeight * 0.8, window.innerHeight - 16);
+      const targetWidth = Math.min(
+        window.innerWidth * 0.6,
+        window.innerWidth - 16
+      );
+      const targetHeight = Math.min(
+        window.innerHeight * 0.8,
+        window.innerHeight - 16
+      );
 
       const x = (window.innerWidth - targetWidth) / 2;
       const y = (window.innerHeight - targetHeight) / 2;
@@ -191,8 +208,11 @@ export default function AiChatButton() {
       let data;
       if (selectedFile) {
         const formData = new FormData();
-        formData.append("file", selectedFile);
-        const res = await fetch("/api/chat/image", {
+        formData.append("image", selectedFile); // [수정] 백엔드 FileInterceptor 이름과 일치 ('image')
+        // 만약 텍스트도 같이 보내야 한다면 아래 주석 해제 (백엔드 로직에 따라 다름)
+        // formData.append("message", msgToSend); 
+        
+        const res = await fetch("/api/chat/ask", { // [수정] 이미지 전송도 /api/chat/ask 로 통일 (백엔드 controller에 맞춤)
           method: "POST",
           body: formData,
         });
@@ -209,7 +229,10 @@ export default function AiChatButton() {
         data = await res.json();
       }
 
-      setMessages((prev) => [...prev, { role: "ai", content: data.response }]);
+      setMessages((prev) => [
+        ...prev,
+        { role: "ai", content: data.response },
+      ]);
     } catch (error) {
       console.error("Chat Error:", error);
       setMessages((prev) => [
@@ -228,34 +251,103 @@ export default function AiChatButton() {
     }
   };
 
-  // 내용 렌더
+  // ─────────────────────────────────────────────────────────────
+  // [수정됨] 내용 렌더러: 링크가 포함된 이미지 감지 및 클릭 기능 추가
+  // ─────────────────────────────────────────────────────────────
   const renderContent = (text) => {
     if (!text) return null;
+
+    // 정규식: 
+    // 그룹 1,2,3: [![alt](src)](href)  <- 링크가 있는 이미지
+    // 그룹 4,5:   ![alt](src)          <- 링크 없는 일반 이미지
     const regex = /\[!\[(.*?)\]\((.*?)\)\]\((.*?)\)|!\[(.*?)\]\((.*?)\)/g;
+    
     const segments = [];
     let lastIndex = 0;
     let match;
 
     while ((match = regex.exec(text)) !== null) {
+      // 1. 매칭 전 텍스트 추가
       if (match.index > lastIndex) {
         segments.push({
           type: "text",
           content: text.substring(lastIndex, match.index),
         });
       }
-      const src = match[2] || match[5];
-      const alt = match[1] || match[4];
-      segments.push({ type: "image", src, alt });
+
+      // 2. 이미지/링크 정보 추출
+      if (match[3]) {
+        // 링크가 있는 이미지
+        segments.push({
+          type: "link-image",
+          alt: match[1],
+          src: match[2],
+          href: match[3],
+        });
+      } else {
+        // 링크 없는 이미지
+        segments.push({
+          type: "image",
+          alt: match[4],
+          src: match[5],
+        });
+      }
+
       lastIndex = regex.lastIndex;
     }
+    // 3. 남은 텍스트 추가
     if (lastIndex < text.length) {
       segments.push({ type: "text", content: text.substring(lastIndex) });
     }
 
-    return segments.map((part, idx) =>
-      part.type === "text" ? (
-        <span key={idx}>{part.content}</span>
-      ) : (
+    // 4. 렌더링
+    return segments.map((part, idx) => {
+      if (part.type === "text") {
+        return <span key={idx}>{part.content}</span>;
+      }
+
+      if (part.type === "link-image") {
+        return (
+          <div
+            key={idx}
+            style={{ margin: "10px 0", borderRadius: 8, overflow: "hidden" }}
+          >
+            <a
+              href={part.href}
+              // target="_blank" rel="noopener noreferrer" // 필요시 새 창 열기 주석 해제
+              style={{
+                display: "block",
+                cursor: "pointer",
+                position: "relative",
+                textDecoration: "none",
+              }}
+            >
+              <img
+                src={part.src}
+                alt={part.alt}
+                style={{ maxWidth: "100%", height: "auto", display: "block" }}
+              />
+              {/* 클릭 유도 오버레이 */}
+              <div
+                style={{
+                  padding: "8px",
+                  backgroundColor: "#f0f8ff",
+                  color: "#0F62FE",
+                  fontSize: "12px",
+                  fontWeight: "bold",
+                  textAlign: "center",
+                  borderTop: "1px solid #e0e0e0",
+                }}
+              >
+                👆 눌러서 상세 견적 확인하기
+              </div>
+            </a>
+          </div>
+        );
+      }
+
+      // 일반 이미지
+      return (
         <div
           key={idx}
           style={{ margin: "10px 0", borderRadius: 8, overflow: "hidden" }}
@@ -266,8 +358,8 @@ export default function AiChatButton() {
             style={{ maxWidth: "100%", height: "auto", display: "block" }}
           />
         </div>
-      )
-    );
+      );
+    });
   };
 
   // 팝업 위치 스타일
@@ -341,9 +433,19 @@ export default function AiChatButton() {
     }
 
     setOpen((prev) => !prev);
-    setIsHoveringButton(false);
     setIsPressed(false);
   };
+
+  // 외부에서 챗봇 열기 트리거 (예: 고객센터 카드)
+  useEffect(() => {
+    const openHandler = () => {
+      if (!open) {
+        handleToggleOpen();
+      }
+    };
+    window.addEventListener("openAiChat", openHandler);
+    return () => window.removeEventListener("openAiChat", openHandler);
+  }, [open, handleToggleOpen]);
 
   // ─────────────────────────────
   //  JSX
@@ -353,83 +455,81 @@ export default function AiChatButton() {
       {/* 오른쪽 아래 AI CHAT 버튼 */}
       <div
         onClick={handleToggleOpen}
+        onMouseDown={() => setIsPressed(true)}
+        onMouseUp={() => setIsPressed(false)}
         onMouseEnter={() => setIsHoveringButton(true)}
         onMouseLeave={() => {
           setIsHoveringButton(false);
           setIsPressed(false);
         }}
-        onMouseDown={() => setIsPressed(true)}
-        onMouseUp={() => setIsPressed(false)}
         style={{
           position: "fixed",
-          right: isNarrow ? "16px" : "96px",
+          right: isNarrow ? "96px" : "120px",
           bottom: "32px",
           zIndex: 60,
           cursor: "pointer",
           display: "flex",
           flexDirection: "column",
           alignItems: "center",
-          gap: 4,
-          transform: isPressed ? "scale(0.94)" : "scale(1)",
-          transition: "transform 0.12s ease-out",
+          gap: 8,
+          transform: isPressed ? "scale(0.92)" : isHoveringButton ? "scale(1.15)" : "scale(1)",
+          transition: "transform 0.2s ease-out",
           background: "transparent",
         }}
         aria-label="ALPHACAR AI 챗봇 열기"
       >
         {!open && (
-          <>
+          <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 8 }}>
+            {/* 말풍선 */}
             <div
               style={{
-                width: 64,
-                height: 64,
-                borderRadius: "999px",
-                backgroundColor: "#0F62FE",
-                boxShadow: "0 8px 20px rgba(0,0,0,0.25)",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                overflow: "hidden",
+                position: "relative",
+                backgroundColor: "#1a1a1a",
+                color: "#ffffff",
+                padding: "8px 12px",
+                borderRadius: "18px",
+                fontSize: "12px",
+                fontWeight: 600,
+                whiteSpace: "nowrap",
+                boxShadow: "0 4px 12px rgba(0, 0, 0, 0.25)",
+                opacity: isHoveringButton ? 1 : 0.95,
+                transform: isHoveringButton ? "translateY(-2px)" : "translateY(0)",
+                transition: "all 0.2s ease-out",
               }}
             >
-              {isHoveringButton ? (
-                <span
-                  style={{
-                    color: "#ffffff",
-                    fontSize: 11,
-                    fontWeight: 700,
-                    letterSpacing: "0.14em",
-                  }}
-                >
-                  AI CHAT
-                </span>
-              ) : (
-                <img
-                  src="/aichat/alphacar-mascot.webp"
-                  alt="ALPHACAR AI 챗봇"
-                  style={{
-                    width: "70%",
-                    height: "70%",
-                    objectFit: "contain",
-                    pointerEvents: "none",
-                  }}
-                />
-              )}
-            </div>
-            {!isHoveringButton && (
-              <span
+              ALPHACAR가 도와드립니다
+              {/* 말풍선 꼬리 */}
+              <div
                 style={{
-                  fontSize: 11,
-                  fontWeight: 700,
-                  letterSpacing: "0.16em",
-                  color: "#444",
-                  textShadow: "0 1px 2px rgba(255,255,255,0.9)",
-                  pointerEvents: "none",
+                  position: "absolute",
+                  bottom: "-6px",
+                  left: "50%",
+                  transform: "translateX(-50%)",
+                  width: 0,
+                  height: 0,
+                  borderLeft: "6px solid transparent",
+                  borderRight: "6px solid transparent",
+                  borderTop: "6px solid #1a1a1a",
                 }}
-              >
-                AI CHAT
-              </span>
-            )}
-          </>
+              />
+            </div>
+            <img
+              src="/aichat/ai-chat-llama.png"
+              alt="ALPHACAR AI 챗봇"
+              onError={(e) => {
+                e.currentTarget.onerror = null;
+                e.currentTarget.src = "/aichat/alphacar-mascot.webp";
+              }}
+              style={{
+                width: 130,
+                height: 130,
+                objectFit: "contain",
+                pointerEvents: "none",
+                display: "block",
+              }}
+              loading="lazy"
+            />
+          </div>
         )}
 
         {open && (
@@ -549,67 +649,66 @@ export default function AiChatButton() {
               </div>
             </div>
 
-            {/* 🔄 로딩 오버레이 : 영상 + 바로 아래 텍스트 한 박스 */}
-{/* 🔄 로딩 오버레이 : 투명 배경 + 가운데 영상 + 아래 텍스트 */}
-{loading && (
-  <div
-    style={{
-      position: "absolute",
-      left: 0,
-      right: 0,
-      top: HEADER_HEIGHT,
-      bottom: 60,
-      backgroundColor: "transparent",
-      zIndex: 80,
-      display: "flex",
-      alignItems: "center",      // 세로 기준 가운데
-      justifyContent: "center",  // 가로 기준 가운데
-    }}
-  >
-    <div
-      style={{
-        display: "flex",
-        flexDirection: "column",
-        alignItems: "center",
-        gap: 10,
-        pointerEvents: "none",
-      }}
-    >
-      {/* ✅ 영상만 위로 살짝 올리기 */}
-      <div
-        style={{
-          width: 260,
-          height: 700,
-          transform: "translateY(-40px)", // ✨ 이 값으로 “위로” 정도 조절
-        }}
-      >
-        <MascotLoader />
-      </div>
+            {/* 🔄 로딩 오버레이 : 투명 배경 + 가운데 영상 + 아래 텍스트 */}
+            {loading && (
+              <div
+                style={{
+                  position: "absolute",
+                  left: 0,
+                  right: 0,
+                  top: HEADER_HEIGHT,
+                  bottom: 60,
+                  backgroundColor: "transparent",
+                  zIndex: 80,
+                  display: "flex",
+                  alignItems: "center", // 세로 기준 가운데
+                  justifyContent: "center", // 가로 기준 가운데
+                }}
+              >
+                <div
+                  style={{
+                    display: "flex",
+                    flexDirection: "column",
+                    alignItems: "center",
+                    gap: 10,
+                    pointerEvents: "none",
+                  }}
+                >
+                  {/* ✅ 영상만 위로 살짝 올리기 */}
+                  <div
+                    style={{
+                      width: 260,
+                      height: 700,
+                      transform: "translateY(-40px)", // ✨ 이 값으로 “위로” 정도 조절
+                    }}
+                  >
+                    <MascotLoader />
+                  </div>
 
-      {/* 텍스트는 그대로 위치, 박스로만 감싸기 */}
-      <div
-        style={{
-          marginTop: 4,
-          padding: "6px 12px",
-          borderRadius: 999,
-          backgroundColor: "rgba(255,255,255,0.9)",
-          boxShadow: "0 2px 6px rgba(0,0,0,0.2)",
-        }}
-      >
-        <span
-          style={{
-            fontSize: 13,
-            fontWeight: 600,
-            color: "#222",
-            whiteSpace: "nowrap",
-          }}
-        >
-          잠시만 기다려주세요... AI가 최적의 정보를 찾는 중입니다.
-        </span>
-      </div>
-    </div>
-  </div>
-)}
+                  {/* 텍스트는 그대로 위치, 박스로만 감싸기 */}
+                  <div
+                    style={{
+                      marginTop: 4,
+                      padding: "6px 12px",
+                      borderRadius: 999,
+                      backgroundColor: "rgba(255,255,255,0.9)",
+                      boxShadow: "0 2px 6px rgba(0,0,0,0.2)",
+                    }}
+                  >
+                    <span
+                      style={{
+                        fontSize: 13,
+                        fontWeight: 600,
+                        color: "#222",
+                        whiteSpace: "nowrap",
+                      }}
+                    >
+                      잠시만 기다려주세요... AI가 최적의 정보를 찾는 중입니다.
+                    </span>
+                  </div>
+                </div>
+              </div>
+            )}
 
             {/* 초기화 확인 팝업 */}
             {showResetConfirm && (
@@ -711,60 +810,118 @@ export default function AiChatButton() {
                 style={{
                   backgroundColor: "#f2f2f4",
                   borderRadius: 18,
-                  padding: "14px 16px",
-                  marginBottom: 12,
-                  lineHeight: 1.6,
+                  padding: "20px 22px",
+                  marginBottom: 16,
+                  lineHeight: 1.65,
+		  fontSize: "15px",
+		  color: "#333333",
+		  letterSpacing: "-0.02em",
+		  boxShadow: "0 2px 8px rgba(0,0,0,0.03)",		
                 }}
               >
-                <p style={{ margin: 0, marginBottom: 4 }}>안녕하세요.</p>
-                <p style={{ margin: 0, marginBottom: 10 }}>알파카 인사 드립니다.</p>
-                <p style={{ margin: 0 }}>
+                <p style={{ margin: 0, marginBottom: 6, fontWeight: "700", fontSize: "18px", color: "#111" }}>안녕하세요.</p>
+                <p style={{ margin: 0, marginBottom: 14, fontWeight: "600", color: "#0F62FE" }}>
+                  AI 챗봇 알파카 인사 드립니다. 
+                </p>
+                <p style={{ margin: 0, fontSize: "14px", color: "#555" }}>
                   아래 버튼 중 선택하시거나,
                   <br />
-                  차량 사진을 올리시거나 궁금한 점을 물어보세요!.
+                  차량 사진을 올리시거나 궁금한 점을 물어보세요!
                 </p>
               </div>
 
-              {/* FAQ 버튼 */}
-              <div style={{ marginBottom: 10 }}>
-                {[
-                  "3천만 원대 사회초년생 첫 차 추천해줘",
-                  "쏘나타랑 그랜저 가격이랑 옵션 비교해줘",
-                  "4인 가족이 탈 만한 차박용 SUV 추천해줘",
-                  "연비 좋은 하이브리드 차량 뭐 있어?",
-                  "제네시스 G80 사진이랑 견적 보여줘",
-                ].map((text, idx) => (
-                  <button
-                    key={idx}
-                    type="button"
-                    onClick={() => handleSendMessage(text)}
-                    style={{
-                      width: "100%",
-                      padding: "11px 14px",
-                      marginBottom: 8,
-                      borderRadius: 999,
-                      border: "1px solid #e0e0e0",
-                      backgroundColor: "#ffffff",
-                      fontSize: 12,
-                      textAlign: "left",
-                      cursor: "pointer",
-                      boxShadow: "0 1px 3px rgba(0,0,0,0.06)",
-                    }}
-                  >
-                    {text}
-                  </button>
-                ))}
+              {/* FAQ 버튼 영역 */}
+              <div style={{ marginBottom: 16 }}>
+                {/* 섹션 제목 추가 */}
                 <p
                   style={{
-                    marginTop: 6,
-                    fontSize: 11,
-                    color: "#888",
+                    fontSize: "13px",
+                    fontWeight: "700",
+                    color: "#333",
+                    marginBottom: 10,
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "6px",
                   }}
                 >
-                  ⚠️ 금융, 정치, 날씨 등 자동차와 무관한 질문은 답변하지 않습니다.
+                  <span style={{ fontSize: "16px" }}>💡</span> 이런 질문은
+                  어떠세요?
                 </p>
-              </div>
 
+                {/* 버튼 리스트 (태그 스타일) */}
+                <div
+                  style={{
+                    display: "flex",
+                    flexWrap: "wrap",
+                    gap: "8px", // 버튼 사이 간격
+                  }}
+                >
+                  {[
+                    "3천만 원대 사회초년생 첫 차 추천해줘",
+                    "쏘나타랑 그랜저 가격이랑 옵션 비교해줘",
+                    "4인 가족이 탈 만한 차박용 SUV 추천해줘",
+                    "연비 좋은 하이브리드 차량 뭐 있어?",
+                    "제네시스 G80 사진이랑 견적 보여줘",
+                  ].map((text, idx) => (
+                    <button
+                      key={idx}
+                      type="button"
+                      onClick={() => handleSendMessage(text)}
+                      // 마우스 오버 효과를 위한 인라인 이벤트 처리
+                      onMouseOver={(e) => {
+                        e.currentTarget.style.backgroundColor = "#E5F1FF"; // 연한 파란색 배경
+                        e.currentTarget.style.color = "#0F62FE"; // 진한 파란색 글자
+                        e.currentTarget.style.borderColor = "#0F62FE";
+                        e.currentTarget.style.transform = "translateY(-1px)";
+                      }}
+                      onMouseOut={(e) => {
+                        e.currentTarget.style.backgroundColor = "#ffffff";
+                        e.currentTarget.style.color = "#444";
+                        e.currentTarget.style.borderColor = "#e0e0e0";
+                        e.currentTarget.style.transform = "translateY(0)";
+                      }}
+                      style={{
+                        padding: "8px 14px",
+                        borderRadius: "20px", // 둥근 알약 모양
+                        border: "1px solid #e0e0e0",
+                        backgroundColor: "#ffffff",
+                        fontSize: "12px",
+                        fontWeight: "500",
+                        color: "#444",
+                        cursor: "pointer",
+                        transition: "all 0.2s ease", // 부드러운 애니메이션
+                        boxShadow: "0 2px 4px rgba(0,0,0,0.03)",
+                        textAlign: "left",
+                        lineHeight: 1.4,
+                      }}
+                    >
+                      {text}
+                    </button>
+                  ))}
+                </div>
+
+                {/* 경고 문구 (박스 형태로 깔끔하게 정리) */}
+                <div
+                  style={{
+                    marginTop: 14,
+                    padding: "10px 12px",
+                    backgroundColor: "#fff0f0", // 연한 붉은 배경으로 주의 환기
+                    borderRadius: "8px",
+                    fontSize: "11px",
+                    color: "#d93025",
+                    lineHeight: "1.4",
+                    display: "flex",
+                    gap: "6px",
+                    alignItems: "start",
+                  }}
+                >
+                  <span style={{ fontSize: "14px" }}>⚠️</span>
+                  <span>
+                    금융, 정치, 날씨 등 <b>자동차와 무관한 질문</b>은 답변하지
+                    않습니다.
+                  </span>
+                </div>
+              </div>
               {/* 대화 영역 */}
               {messages.map((msg, idx) => {
                 const isUser = msg.role === "user";
@@ -1044,4 +1201,3 @@ const headerIconButtonStyle = {
   alignItems: "center",
   justifyContent: "center",
 };
-

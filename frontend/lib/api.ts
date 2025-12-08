@@ -17,9 +17,13 @@ export type MainData = {
   shortcuts: string[];
 };
 
-export async function fetchMainData(): Promise<MainData> {
+export async function fetchMainData(brand?: string): Promise<MainData> {
   // /api/main -> 3002번 포트의 /main 으로 연결됨
-  const res = await fetch(`/api/main`, { method: "GET" });
+  // 브랜드 필터링 지원
+  const url = brand && brand !== '전체' && brand !== 'all' 
+    ? `/api/main?brand=${encodeURIComponent(brand)}`
+    : `/api/main`;
+  const res = await fetch(url, { method: "GET" });
   if (!res.ok) throw new Error("메인 데이터 불러오기 실패");
   return res.json();
 }
@@ -139,5 +143,27 @@ export type SearchResult = { success: boolean; keyword: string; result: { cars: 
 export async function fetchSearch(keyword: string): Promise<SearchResult> {
   const res = await fetch(`/api/search?keyword=${encodeURIComponent(keyword)}`, { method: "GET" });
   if (!res.ok) throw new Error("검색 API 호출 실패");
+  return res.json();
+}
+
+// --------------------
+// 7. 브랜드 목록 (Main Service -> Port 3002)
+// --------------------
+export type Brand = {
+  name: string;
+  logo_url?: string;
+};
+
+export async function fetchBrands(): Promise<Brand[]> {
+  const res = await fetch(`/api/brands`, { method: "GET" });
+  if (!res.ok) throw new Error("브랜드 목록 불러오기 실패");
+  return res.json();
+}
+
+// ✅ [추가] 브랜드 목록 (로고 포함) 가져오기
+export type BrandWithLogo = { name: string; logo_url: string; };
+export async function fetchBrandsWithLogo(): Promise<BrandWithLogo[]> {
+  const res = await fetch(`/api/makers-with-logo`, { method: "GET" });
+  if (!res.ok) throw new Error("브랜드 목록 불러오기 실패");
   return res.json();
 }

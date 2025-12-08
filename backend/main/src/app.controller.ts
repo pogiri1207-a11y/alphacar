@@ -19,9 +19,12 @@ export class AppController {
   // ★ [수정] 프론트엔드가 /api/main을 호출하면 이 함수가 실행됩니다.
   // 기존 @Get()에 있던 '배너 + 최근 본 차량 + 차량 목록' 로직을 여기로 합쳤습니다.
   @Get('main')
-  async getMainData(@Query('userId') userId: string = 'guest_id') {
-    // (1) 서비스에서 차량 목록 가져오기
-    const carList = await this.appService.getCarList();
+  async getMainData(
+    @Query('userId') userId: string = 'guest_id',
+    @Query('brand') brand?: string
+  ) {
+    // (1) 서비스에서 차량 목록 가져오기 (브랜드 필터링 지원)
+    const carList = await this.appService.getCarList(brand);
 
     // (2) Redis에서 최근 본 차량 ID 목록 가져오기
     const recentViewIds = await this.redisService.getRecentViews(userId);
@@ -47,10 +50,10 @@ export class AppController {
     };
   }
 
-  // 3. 차량 목록만 별도로 조회 (GET /cars)
+  // 3. 차량 목록만 별도로 조회 (GET /cars) - 브랜드 필터링 지원
   @Get('cars')
-  async getCarList() {
-    return await this.appService.getCarList();
+  async getCarList(@Query('brand') brand?: string) {
+    return await this.appService.getCarList(brand);
   }
 
   // 4. 최근 본 차량 기록 (POST /log-view/:id)
@@ -72,6 +75,12 @@ export class AppController {
   @Get('makers')
   async getMakers() {
     return this.appService.findAllMakers();
+  }
+
+  // 6. 브랜드 목록 조회 (GET /brands) - logo_url 포함
+  @Get('brands')
+  async getBrands() {
+    return this.appService.getBrandsWithLogo();
   }
 
   @Get('models')

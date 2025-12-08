@@ -1,15 +1,19 @@
-// alphacar-project/alphacar/alphacar-0f6f51352a76b0977fcac48535606711be26d728/backend/main/src/manufacturer.schema.ts
+// src/manufacturer.schema.ts
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
-import { HydratedDocument, Document } from 'mongoose';
+import { Document } from 'mongoose';
 
-export type ManufacturerDocument = HydratedDocument<Manufacturer>;
+export type ManufacturerDocument = Manufacturer & Document;
 
-// 'manufacturers' 컬렉션에 연결
-@Schema({ collection: 'manufacturers' })
-export class Manufacturer extends Document {
-  // 제조사 이름 (프론트엔드 요구사항: name)
-  @Prop({ required: true })
-  name: string;
+@Schema()
+export class Manufacturer {
+  @Prop({ required: true, unique: true })
+  name: string; // 제조사 이름 (예: 현대, 기아)
+
+  @Prop()
+  country: string; // 제조국
+
+  @Prop()
+  logoUrl: string; // 로고 이미지 URL
 }
 
 export const ManufacturerSchema = SchemaFactory.createForClass(Manufacturer);

@@ -27,7 +27,24 @@ export class VehiclesController {
     return this.appService.getModelsByManufacturer(makerId);
   }
 
-  // 3. 트림 목록
+  // 3. 기본 트림 목록 (4단계 필터링용)
+  @Get('base-trims')
+  getBaseTrims(
+    @Query('modelId') modelId: string,
+    @Query('vehicleId') vehicleId: string
+  ) {
+    const targetId = modelId || vehicleId;
+    this.logger.log(`[REQ] GET /vehicles/base-trims 요청 수신 (ID: ${targetId})`);
+
+    if (!targetId || targetId === 'undefined') {
+      this.logger.warn(`❌ ID가 전달되지 않았습니다.`);
+      return [];
+    }
+
+    return this.appService.getBaseTrimsByModel(targetId);
+  }
+
+  // 4. 세부 트림 목록
   @Get('trims')
   getTrims(
     @Query('modelId') modelId: string,
@@ -44,7 +61,7 @@ export class VehiclesController {
     return this.appService.getTrimsByModel(targetId);
   }
 
-  // 4. 상세 결과 조회 (Flexible Search)
+  // 5. 상세 결과 조회 (Flexible Search)
   @Get('detail')
   async getTrimDetail(@Query('trimId') trimId: string) {
     this.logger.log(`[REQ] GET /vehicles/detail 요청 수신: trimId=${trimId}`);
@@ -54,7 +71,7 @@ export class VehiclesController {
     return this.vehiclesService.findOneByTrimId(trimId);
   }
   
-  // 5. [신규 구현] 비교 데이터 (다중 차량 조회)
+  // 6. [신규 구현] 비교 데이터 (다중 차량 조회)
   @Get('compare-data')
   async getCompareData(@Query('ids') ids: string) {
     this.logger.log(`[REQ] GET /vehicles/compare-data 요청 수신: ids=${ids}`);
@@ -66,7 +83,7 @@ export class VehiclesController {
     return this.vehiclesService.findManyByTrimIds(identifiers);
   }
 
-  // 6. 비교 견적 상세
+  // 7. 비교 견적 상세
   @Get('compare-details')
   async getCompareDetails(
     @Query('trimId') trimId: string,
@@ -78,7 +95,7 @@ export class VehiclesController {
     return await this.appService.getCompareDetails(trimId, optionIds);
   }
   
-  // 7. 특정 차량 조회 (ID 전용)
+  // 8. 특정 차량 조회 (ID 전용)
   @Get(':id')
   async findOne(@Param('id') id: string) {
     this.logger.log(`[REQ] GET /vehicles/:id 요청 수신: id=${id}`);

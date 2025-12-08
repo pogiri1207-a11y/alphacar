@@ -24,15 +24,17 @@ const handleApiResponse = async (res) => {
 
 // ---------------- [1] 공통 컴포넌트: 차량 선택 박스 ----------------
 function CarSelector({ title, onSelectComplete, onReset, resetSignal }) {
-  const [makerId, setMakerId] = useState("");
-  const [modelId, setModelId] = useState("");
-  const [trimId, setTrimId] = useState("");
+  const [makerId, setMakerId] = useState("");
+  const [modelId, setModelId] = useState("");
+  const [baseTrimId, setBaseTrimId] = useState("");
+  const [trimId, setTrimId] = useState("");
 
-  const [makers, setMakers] = useState([]);
-  const [models, setModels] = useState([]);
-  const [trims, setTrims] = useState([]);
+  const [makers, setMakers] = useState([]);
+  const [models, setModels] = useState([]);
+  const [baseTrims, setBaseTrims] = useState([]);
+  const [trims, setTrims] = useState([]);
 
-  const [trimName, setTrimName] = useState("");
+  const [trimName, setTrimName] = useState("");
 
   // 1. 초기 로딩
   useEffect(() => {
@@ -47,115 +49,217 @@ function CarSelector({ title, onSelectComplete, onReset, resetSignal }) {
       });
   }, []);
 
-  // 2. 초기화 신호
-  useEffect(() => {
-    handleReset();
-  }, [resetSignal]);
+  // 2. 초기화 신호
+  useEffect(() => {
+    handleReset();
+  }, [resetSignal]);
 
-  const handleReset = () => {
-    setMakerId(""); setModelId(""); setTrimId("");
-    setTrimName("");
-    setModels([]); setTrims([]);
-    if (onReset) onReset();
-  };
+  const handleReset = () => {
+    setMakerId(""); setModelId(""); setBaseTrimId(""); setTrimId("");
+    setTrimName("");
+    setModels([]); setBaseTrims([]); setTrims([]);
+    if (onReset) onReset();
+  };
 
-  // 3. 핸들러들
-  const handleMakerChange = (e) => {
-    const newMakerId = e.target.value;
-    setMakerId(newMakerId);
-    setModelId(""); setTrimId(""); setTrimName("");
-    setModels([]); setTrims([]);
+  // 3. 핸들러들
+  const handleMakerChange = (e) => {
+    const newMakerId = e.target.value;
+    setMakerId(newMakerId);
+    setModelId(""); setBaseTrimId(""); setTrimId(""); setTrimName("");
+    setModels([]); setBaseTrims([]); setTrims([]);
 
-    if (!newMakerId) return;
+    if (!newMakerId) return;
 
-    fetch(`${API_BASE}/vehicles/models?makerId=${newMakerId}`)
-      .then(handleApiResponse)
-      .then((data) => {
-        if (Array.isArray(data)) {
-          const uniqueModels = Array.from(new Map(data.map(m => [m.model_name, m])).values());
-          setModels(uniqueModels);
-        } else setModels([]);
-      })
-      .catch((err) => console.error("모델 로딩 실패:", err));
-  };
+    fetch(`${API_BASE}/vehicles/models?makerId=${encodeURIComponent(newMakerId)}`)
+      .then(handleApiResponse)
+      .then((data) => {
+        if (Array.isArray(data)) {
+          const uniqueModels = Array.from(new Map(data.map(m => [m.model_name, m])).values());
+          setModels(uniqueModels);
+          // 차종이 하나만 있으면 자동 선택
+          if (uniqueModels.length === 1) {
+            const singleModel = uniqueModels[0];
+            setModelId(singleModel._id);
+            // 자동으로 기본 트림 로드
+            fetch(`${API_BASE}/vehicles/base-trims?modelId=${singleModel._id}`)
+              .then(handleApiResponse)
+              .then((baseTrimData) => {
+                if (Array.isArray(baseTrimData)) {
+                  setBaseTrims(baseTrimData);
+                  if (baseTrimData.length === 1) {
+                    setBaseTrimId(baseTrimData[0]._id || baseTrimData[0].id);
+                    // 자동으로 세부 트림 로드
+                    fetch(`${API_BASE}/vehicles/trims?modelId=${singleModel._id}`)
+                      .then(handleApiResponse)
+                      .then((trimData) => {
+                        if (Array.isArray(trimData)) {
+                          setTrims(trimData);
+                          // 세부 트림이 하나만 있으면 자동 선택
+                          if (trimData.length === 1) {
+                            const singleTrim = trimData[0];
+                            const trimVal = singleTrim._id || singleTrim.trim_name || singleTrim.name;
+                            setTrimId(trimVal);
+                            setTrimName(singleTrim.name || singleTrim.trim_name);
+                          }
+                        } else setTrims([]);
+                      })
+                      .catch((err) => console.error("세부 트림 로딩 실패:", err));
+                  }
+                } else setBaseTrims([]);
+              })
+              .catch((err) => console.error("기본 트림 로딩 실패:", err));
+          }
+        } else setModels([]);
+      })
+      .catch((err) => console.error("모델 로딩 실패:", err));
+  };
 
-  const handleModelChange = (e) => {
-    const newModelId = e.target.value;
-    setModelId(newModelId);
-    setTrimId(""); setTrimName(""); setTrims([]);
+  const handleModelChange = (e) => {
+    const newModelId = e.target.value;
+    setModelId(newModelId);
+    setBaseTrimId(""); setTrimId(""); setTrimName("");
+    setBaseTrims([]); setTrims([]);
 
-    if (!newModelId) return;
+    if (!newModelId) return;
 
-    fetch(`${API_BASE}/vehicles/trims?modelId=${newModelId}`)
-      .then(handleApiResponse)
-      .then((data) => {
-        if (Array.isArray(data)) setTrims(data);
-        else setTrims([]);
-      })
-      .catch((err) => console.error("트림 로딩 실패:", err));
-  };
+    fetch(`${API_BASE}/vehicles/base-trims?modelId=${newModelId}`)
+      .then(handleApiResponse)
+      .then((data) => {
+        if (Array.isArray(data)) {
+          setBaseTrims(data);
+          // 기본 트림이 하나만 있으면 자동 선택
+          if (data.length === 1) {
+            setBaseTrimId(data[0]._id || data[0].id);
+            // 자동으로 세부 트림도 로드
+            fetch(`${API_BASE}/vehicles/trims?modelId=${newModelId}`)
+              .then(handleApiResponse)
+              .then((trimData) => {
+                if (Array.isArray(trimData)) {
+                  setTrims(trimData);
+                  // 세부 트림이 하나만 있으면 자동 선택
+                  if (trimData.length === 1) {
+                    const singleTrim = trimData[0];
+                    const trimVal = singleTrim._id || singleTrim.trim_name || singleTrim.name;
+                    setTrimId(trimVal);
+                    setTrimName(singleTrim.name || singleTrim.trim_name);
+                  }
+                } else setTrims([]);
+              })
+              .catch((err) => console.error("세부 트림 로딩 실패:", err));
+          }
+        } else setBaseTrims([]);
+      })
+      .catch((err) => console.error("기본 트림 로딩 실패:", err));
+  };
 
-  const handleTrimChange = (e) => {
-    const newTrimId = e.target.value;
-    const index = e.target.selectedIndex;
-    setTrimId(newTrimId);
-    if (index >= 0) setTrimName(e.target.options[index].text);
-  };
+  const handleBaseTrimChange = (e) => {
+    const newBaseTrimId = e.target.value;
+    setBaseTrimId(newBaseTrimId);
+    setTrimId(""); setTrimName("");
+    setTrims([]);
 
-  const handleCompleteClick = () => {
-    if (!trimId) {
-      alert("트림까지 모두 선택해주세요.");
-      return;
-    }
-    if (onSelectComplete) onSelectComplete(trimId);
-  };
+    if (!newBaseTrimId || !modelId) return;
+
+    // 기본 트림 선택 후 세부 트림 목록 가져오기
+    fetch(`${API_BASE}/vehicles/trims?modelId=${modelId}`)
+      .then(handleApiResponse)
+      .then((data) => {
+        if (Array.isArray(data)) {
+          setTrims(data);
+          // 세부 트림이 하나만 있으면 자동 선택
+          if (data.length === 1) {
+            const singleTrim = data[0];
+            const trimVal = singleTrim._id || singleTrim.trim_name || singleTrim.name;
+            setTrimId(trimVal);
+            setTrimName(singleTrim.name || singleTrim.trim_name);
+          }
+        } else setTrims([]);
+      })
+      .catch((err) => console.error("세부 트림 로딩 실패:", err));
+  };
+
+  const handleTrimChange = (e) => {
+    const newTrimId = e.target.value;
+    const index = e.target.selectedIndex;
+    setTrimId(newTrimId);
+    if (index >= 0) setTrimName(e.target.options[index].text);
+  };
+
+  const handleCompleteClick = () => {
+    if (!trimId) {
+      alert("세부트림까지 모두 선택해주세요.");
+      return;
+    }
+    if (onSelectComplete) {
+      // "Reserve A/T:1" 형식에서 실제 트림 이름만 추출 (":숫자" 제거)
+      const trimNameOnly = trimId.split(':')[0].trim();
+      onSelectComplete(trimNameOnly);
+    }
+  };
 
   return (
     <div style={{ backgroundColor: "#fff", borderRadius: "16px", padding: "24px 28px", boxShadow: "0 4px 12px rgba(0,0,0,0.05)", display: "flex", flexDirection: "column", height: "100%" }}>
-      <div style={{ fontSize: "18px", fontWeight: 700, marginBottom: "8px", color: "#1e293b" }}>{title}</div>
-      <div style={{ fontSize: "13px", color: "#64748b", marginBottom: "20px" }}>제조사 → 모델 → 트림 순서로 선택</div>
+      <div style={{ fontSize: "18px", fontWeight: 700, marginBottom: "8px", color: "#1e293b" }}>{title}</div>
+      <div style={{ fontSize: "13px", color: "#64748b", marginBottom: "20px" }}>제조사 → 차종 → 기본트림 → 세부트림 순서로 선택</div>
 
-      {/* 내부 요소도 반응형 그리드 */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(130px, 1fr))", gap: "12px", marginBottom: "20px" }}>
-        
-        <div style={{ minWidth: 0 }}>
-          <div style={labelStyle}>제조사</div>
-          <select size={8} value={makerId} onChange={handleMakerChange} style={selectStyle}>
-            {makers.length === 0 && <option disabled>로딩중...</option>}
-            {makers.map((m, idx) => (
-              <option key={m._id || `m-${idx}`} value={m._id}>{m.name}</option>
-            ))}
-          </select>
-        </div>
+      {/* 내부 요소도 반응형 그리드 (4단계 필터링을 항상 4열로 표시) */}
+      <div className="filter-grid">
+        
+        <div style={{ minWidth: 0 }}>
+          <div style={labelStyle}>제조사</div>
+          <select size={8} value={makerId || ""} onChange={handleMakerChange} style={selectStyle}>
+            <option value="" disabled style={{ color: "#ccc" }}>- 선택 -</option>
+            {makers.length === 0 && <option disabled>로딩중...</option>}
+            {makers.map((m, idx) => (
+              <option key={m._id || `m-${idx}`} value={m._id || m.name}>{m.name}</option>
+            ))}
+          </select>
+        </div>
 
-        <div style={{ minWidth: 0 }}>
-          <div style={labelStyle}>모델</div>
-          <select size={8} value={modelId} onChange={handleModelChange} style={selectStyle}>
-            {models.length === 0 ? (
-               <option value="" disabled style={{ color: "#ccc" }}>{makerId ? "없음" : "-"}</option>
-            ) : (
-               models.map((m, idx) => (
-                 <option key={m._id || `mo-${idx}`} value={m._id}>{m.model_name}</option>
-               ))
-            )}
-          </select>
-        </div>
+        <div style={{ minWidth: 0 }}>
+          <div style={labelStyle}>차종</div>
+          <select size={8} value={modelId || ""} onChange={handleModelChange} style={selectStyle}>
+            <option value="" disabled style={{ color: "#ccc" }}>{makerId ? "- 선택 -" : "-"}</option>
+            {models.length === 0 ? (
+               <option value="" disabled style={{ color: "#ccc" }}>{makerId ? "없음" : "-"}</option>
+            ) : (
+               models.map((m, idx) => (
+                 <option key={m._id || `mo-${idx}`} value={m._id}>{m.model_name}</option>
+               ))
+            )}
+          </select>
+        </div>
 
-        <div style={{ minWidth: 0 }}>
-          <div style={labelStyle}>트림</div>
-          <select size={8} value={trimId} onChange={handleTrimChange} style={selectStyle}>
-             {trims.length === 0 ? (
-               <option value="" disabled style={{ color: "#ccc" }}>{modelId ? "없음" : "-"}</option>
-            ) : (
-               trims.map((t, idx) => {
-                 const uniqueKey = t._id ? t._id : `trim-${idx}`;
-                 const val = t._id || t.trim_name || t.name; 
-                 return <option key={uniqueKey} value={val}>{t.name || t.trim_name}</option>;
-               })
-            )}
-          </select>
-        </div>
-      </div>
+        <div style={{ minWidth: 0 }}>
+          <div style={labelStyle}>기본트림</div>
+          <select size={8} value={baseTrimId || ""} onChange={handleBaseTrimChange} style={selectStyle}>
+            <option value="" disabled style={{ color: "#ccc" }}>{modelId ? "- 선택 -" : "-"}</option>
+             {baseTrims.length === 0 ? (
+               <option value="" disabled style={{ color: "#ccc" }}>{modelId ? "없음" : "-"}</option>
+            ) : (
+               baseTrims.map((t, idx) => (
+                 <option key={t._id || `base-${idx}`} value={t._id || t.name}>{t.name || t.base_trim_name}</option>
+               ))
+            )}
+          </select>
+        </div>
+
+        <div style={{ minWidth: 0 }}>
+          <div style={labelStyle}>세부트림</div>
+          <select size={8} value={trimId || ""} onChange={handleTrimChange} style={selectStyle}>
+            <option value="" disabled style={{ color: "#ccc" }}>{baseTrimId ? "- 선택 -" : "-"}</option>
+             {trims.length === 0 ? (
+               <option value="" disabled style={{ color: "#ccc" }}>{baseTrimId ? "없음" : "-"}</option>
+            ) : (
+               trims.map((t, idx) => {
+                 const uniqueKey = t._id ? t._id : `trim-${idx}`;
+                 const val = t._id || t.trim_name || t.name; 
+                 return <option key={uniqueKey} value={val}>{t.name || t.trim_name}</option>;
+               })
+            )}
+          </select>
+        </div>
+      </div>
 
       <div style={{ marginTop: "auto", display: "flex", flexDirection: "column", gap: "12px" }}>
         <div style={{ fontSize: "13px", color: "#333", backgroundColor: "#f8fafc", padding: "10px", borderRadius: "8px", border: "1px solid #e2e8f0" }}>
@@ -188,8 +292,8 @@ function CarOptionSelectCard({ data, selectedSet, onToggle }) {
   
   const finalPrice = basePrice + optionsTotal;
 
-  return (
-    <div style={{ backgroundColor: "#fff", borderRadius: "16px", padding: "28px 32px 24px", boxShadow: "0 4px 12px rgba(0,0,0,0.05)", height: "100%", display: "flex", flexDirection: "column" }}>
+  return (
+    <div style={{ backgroundColor: "#fff", borderRadius: "16px", padding: "24px 28px 20px", boxShadow: "0 4px 12px rgba(0,0,0,0.05)", display: "flex", flexDirection: "column", minHeight: "450px" }}>
       <div style={{ textAlign: "center", marginBottom: "24px" }}>
         <div style={{ width: "100%", height: "140px", marginBottom: "16px", borderRadius: "12px", backgroundColor: data.image_url ? "transparent" : "#f3f3f3", display: "flex", alignItems: "center", justifyContent: "center", overflow: "hidden" }}>
           {data.image_url || data.main_image ? ( // main_image 필드도 확인
@@ -207,45 +311,45 @@ function CarOptionSelectCard({ data, selectedSet, onToggle }) {
         <span style={{ fontWeight: 700, color: "#333" }}>{basePrice.toLocaleString()}원</span>
       </div>
 
-      <div style={{ flex: 1, marginBottom: "20px", minHeight: "200px" }}>
-        <div style={{ fontWeight: 700, fontSize: "15px", marginBottom: "12px", borderBottom: "2px solid #eee", paddingBottom: "8px" }}>
-            옵션 선택 ({data.options?.length || 0})
-        </div>
-        <div style={{ maxHeight: "300px", overflowY: "auto", paddingRight: "4px" }}>
-          {(!data.options || data.options.length === 0) && (
-            <div style={{ padding: "20px", textAlign: "center", color: "#999", fontSize: "13px" }}>선택 가능한 옵션이 없습니다.</div>
-          )}
-          {(data.options || []).map((opt, idx) => {
-            const safeId = opt._id || `opt-${idx}`;
-            const isChecked = selectedSet.has(safeId);
-            const price = opt.price || opt.option_price || 0;
-            return (
-              <label
-                key={safeId}
-                style={{
-                  display: "flex", alignItems: "center", padding: "10px 12px", marginBottom: "6px", borderRadius: "8px",
-                  cursor: "pointer", transition: "all 0.2s",
-                  backgroundColor: isChecked ? "#eff6ff" : "#fff",
-                  border: isChecked ? "1px solid #bfdbfe" : "1px solid #eee"
-                }}
-              >
-                <input
-                  type="checkbox"
-                  checked={isChecked}
-                  onChange={() => onToggle(safeId)}
-                  style={{ marginRight: "12px", width: "16px", height: "16px", accentColor: "#2563eb", cursor: "pointer" }}
-                />
-                <div style={{ flex: 1 }}>
-                    <div style={{ fontSize: "14px", fontWeight: isChecked ? 600 : 400 }}>{opt.name || opt.option_name}</div>
-                </div>
-                <span style={{ fontSize: "13px", color: isChecked ? "#1d4ed8" : "#666", fontWeight: isChecked ? 700 : 400 }}>
-                    +{price.toLocaleString()}원
-                </span>
-              </label>
-            );
-          })}
-        </div>
-      </div>
+      <div style={{ flex: 1, marginBottom: "20px", minHeight: "100px" }}>
+        <div style={{ fontWeight: 700, fontSize: "14px", marginBottom: "8px", borderBottom: "2px solid #eee", paddingBottom: "6px" }}>
+            옵션 선택 ({data.options?.length || 0})
+        </div>
+        <div style={{ maxHeight: "120px", overflowY: "auto", paddingRight: "4px" }}>
+          {(!data.options || data.options.length === 0) && (
+            <div style={{ padding: "12px", textAlign: "center", color: "#999", fontSize: "12px" }}>선택 가능한 옵션이 없습니다.</div>
+          )}
+          {(data.options || []).map((opt, idx) => {
+            const safeId = opt._id || `opt-${idx}`;
+            const isChecked = selectedSet.has(safeId);
+            const price = opt.price || opt.option_price || 0;
+            return (
+              <label
+                key={safeId}
+                style={{
+                  display: "flex", alignItems: "center", padding: "6px 10px", marginBottom: "4px", borderRadius: "6px",
+                  cursor: "pointer", transition: "all 0.2s",
+                  backgroundColor: isChecked ? "#eff6ff" : "#fff",
+                  border: isChecked ? "1px solid #bfdbfe" : "1px solid #eee"
+                }}
+              >
+                <input
+                  type="checkbox"
+                  checked={isChecked}
+                  onChange={() => onToggle(safeId)}
+                  style={{ marginRight: "10px", width: "14px", height: "14px", accentColor: "#2563eb", cursor: "pointer" }}
+                />
+                <div style={{ flex: 1 }}>
+                    <div style={{ fontSize: "12px", fontWeight: isChecked ? 600 : 400 }}>{opt.name || opt.option_name}</div>
+                </div>
+                <span style={{ fontSize: "11px", color: isChecked ? "#1d4ed8" : "#666", fontWeight: isChecked ? 700 : 400 }}>
+                    +{price.toLocaleString()}원
+                </span>
+              </label>
+            );
+          })}
+        </div>
+      </div>
 
       <div style={{ backgroundColor: "#111", color: "#fff", borderRadius: "12px", padding: "16px 20px", display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: "auto" }}>
         <span style={{ fontSize: "14px", opacity: 0.9 }}>최종 견적가</span>
@@ -287,20 +391,24 @@ export default function CompareQuotePage() {
       let selectedTrim = null;
       const trims = rawVehicleData.trims || [];
 
-      if (trims.length > 0) {
-          // A. 이름으로 정확히 일치하는 트림 찾기 (String ID 대응)
-          selectedTrim = trims.find(t => t.trim_name === decodeURIComponent(trimId));
+      if (trims.length > 0) {
+          const decodedTrimId = decodeURIComponent(trimId);
+          // "Reserve A/T:1" 형식에서 실제 트림 이름만 추출 (":숫자" 제거)
+          const trimNameOnly = decodedTrimId.split(':')[0].trim();
+          
+          // A. 이름으로 정확히 일치하는 트림 찾기 (String ID 대응)
+          selectedTrim = trims.find(t => t.trim_name === trimNameOnly || t.trim_name === decodedTrimId);
 
-          // B. ID로 찾기 (ObjectId 대응)
-          if (!selectedTrim) {
-              selectedTrim = trims.find(t => t._id === trimId || t.trim_id === trimId);
-          }
+          // B. ID로 찾기 (ObjectId 대응)
+          if (!selectedTrim) {
+              selectedTrim = trims.find(t => t._id === trimId || t.trim_id === trimId);
+          }
 
-          // C. Fallback: 여전히 못 찾았다면 첫 번째 트림을 기본값으로 사용
-          if (!selectedTrim) {
-              selectedTrim = trims[0];
-          }
-      }
+          // C. Fallback: 여전히 못 찾았다면 첫 번째 트림을 기본값으로 사용
+          if (!selectedTrim) {
+              selectedTrim = trims[0];
+          }
+      }
      
       if (!selectedTrim) {
           console.warn("트림 데이터가 없어 차량을 표시할 수 없습니다.");
@@ -400,25 +508,25 @@ export default function CompareQuotePage() {
             <button onClick={handleResetAll} style={btnResetStyle}>전체 초기화</button>
         </div>
 
-        {/* ✅ [UI 수정 1] 상단: 차량 선택 박스 2개 가로 배치 */}
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(400px, 1fr))", gap: "24px", marginBottom: "40px" }}>
-            <CarSelector title="차량 1 선택" onSelectComplete={handleSelect1} onReset={() => setCar1Data(null)} resetSignal={resetSignal} />
-            <CarSelector title="차량 2 선택" onSelectComplete={handleSelect2} onReset={() => setCar2Data(null)} resetSignal={resetSignal} />
-        </div>
+        {/* ✅ [UI 수정 1] 상단: 차량 선택 박스 2개 가로 배치 (항상 2열 고정) */}
+        <div className="car-selector-grid">
+            <CarSelector title="차량 1 선택" onSelectComplete={handleSelect1} onReset={() => setCar1Data(null)} resetSignal={resetSignal} />
+            <CarSelector title="차량 2 선택" onSelectComplete={handleSelect2} onReset={() => setCar2Data(null)} resetSignal={resetSignal} />
+        </div>
 
-        {/* ✅ [UI 수정 2] 하단: 결과 박스 2개 가로 배치 (선택 시 등장) */}
-        {(car1Data || car2Data) && (
-            <div style={{ animation: "fadeIn 0.4s ease-out", borderTop: "2px dashed #e2e8f0", paddingTop: "40px" }}>
-                <h2 style={{ fontSize: "20px", fontWeight: 700, color: "#333", marginBottom: "20px", textAlign: "center" }}>
-                    선택된 차량 정보 및 옵션
-                </h2>
-                
-                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(400px, 1fr))", gap: "24px" }}>
-                    {/* 데이터가 없으면 빈 칸을 둬서 레이아웃 유지 */}
-                    {car1Data ? <CarOptionSelectCard data={car1Data} selectedSet={car1Opts} onToggle={toggleCar1Opt} /> : <div style={{ border: "2px dashed #eee", borderRadius: "16px", height: "300px", display: "flex", alignItems: "center", justifyContent: "center", color: "#ccc" }}>차량 1을 선택해주세요</div>}
-                    
-                    {car2Data ? <CarOptionSelectCard data={car2Data} selectedSet={car2Opts} onToggle={toggleCar2Opt} /> : <div style={{ border: "2px dashed #eee", borderRadius: "16px", height: "300px", display: "flex", alignItems: "center", justifyContent: "center", color: "#ccc" }}>차량 2를 선택해주세요</div>}
-                </div>
+        {/* ✅ [UI 수정 2] 하단: 결과 박스 2개 가로 배치 (선택 시 등장) */}
+        {(car1Data || car2Data) && (
+            <div style={{ animation: "fadeIn 0.4s ease-out", borderTop: "2px dashed #e2e8f0", paddingTop: "40px" }}>
+                <h2 style={{ fontSize: "20px", fontWeight: 700, color: "#333", marginBottom: "20px", textAlign: "center" }}>
+                    선택된 차량 정보 및 옵션
+                </h2>
+                
+                <div className="car-result-grid">
+                    {/* 데이터가 없으면 빈 칸을 둬서 레이아웃 유지 */}
+                    {car1Data ? <CarOptionSelectCard data={car1Data} selectedSet={car1Opts} onToggle={toggleCar1Opt} /> : <div className="empty-car-card">차량 1을 선택해주세요</div>}
+                    
+                    {car2Data ? <CarOptionSelectCard data={car2Data} selectedSet={car2Opts} onToggle={toggleCar2Opt} /> : <div className="empty-car-card">차량 2를 선택해주세요</div>}
+                </div>
 
                 {car1Data && car2Data && (
                     <div style={{ marginTop: "40px", textAlign: "center" }}>
@@ -431,12 +539,55 @@ export default function CompareQuotePage() {
         )}
 
       </div>
-      <style jsx global>{`
-        @keyframes fadeIn {
-          from { opacity: 0; transform: translateY(10px); }
-          to { opacity: 1; transform: translateY(0); }
-        }
-      `}</style>
+      <style jsx global>{`
+        @keyframes fadeIn {
+          from { opacity: 0; transform: translateY(10px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+        .car-selector-grid {
+          display: grid;
+          grid-template-columns: repeat(2, 1fr);
+          gap: 24px;
+          margin-bottom: 40px;
+        }
+        @media (max-width: 768px) {
+          .car-selector-grid {
+            grid-template-columns: 1fr;
+          }
+        }
+        .filter-grid {
+          display: grid;
+          grid-template-columns: repeat(4, 1fr);
+          gap: 12px;
+          margin-bottom: 20px;
+        }
+        @media (max-width: 1024px) {
+          .filter-grid {
+            grid-template-columns: repeat(2, 1fr);
+          }
+        }
+        .car-result-grid {
+          display: grid;
+          grid-template-columns: repeat(2, 1fr);
+          gap: 24px;
+          align-items: start;
+        }
+        @media (max-width: 768px) {
+          .car-result-grid {
+            grid-template-columns: 1fr;
+          }
+        }
+        .empty-car-card {
+          border: 2px dashed #eee;
+          border-radius: 16px;
+          min-height: 450px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          color: #ccc;
+          background-color: #fff;
+        }
+      `}</style>
     </main>
   );
 }

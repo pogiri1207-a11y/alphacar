@@ -3,7 +3,7 @@
 
 import { useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
-import { fetchMainData } from "../lib/api";
+import { fetchMainData, fetchBrandsWithLogo } from "../lib/api";
 import YouTubeSection from "./components/YouTubeSection";
 import CarDetailModal from "./components/CarDetailModal";
 import MidBanner from "./components/MidBanner";
@@ -18,11 +18,7 @@ const bannerItems = [
   { id: 3, img: "/banners/banner3.png", link: "/quote" },
 ];
 
-const brands = [
-  "전체", "현대", "기아", "제네시스", "르노", "KGM", "쉐보레", "벤츠", "BMW", "아우디",
-  "폭스바겐", "볼보", "렉서스", "토요타", "테슬라", "랜드로버", "포르쉐", "미니", "포드",
-  "링컨", "지프", "푸조", "캐딜락", "폴스타", "마세라티", "혼다", "BYD",
-];
+// 브랜드 목록은 API에서 가져옴
 
 // 💖 하트 아이콘 컴포넌트
 const HeartIcon = ({ filled }) => (
@@ -31,8 +27,8 @@ const HeartIcon = ({ filled }) => (
     viewBox="0 0 24 24"
     width="28"
     height="28"
-    fill={filled ? "#ff4d4f" : "rgba(0,0,0,0.3)"} 
-    stroke={filled ? "#ff4d4f" : "#ffffff"} 
+    fill={filled ? "#ff4d4f" : "rgba(0,0,0,0.3)"}
+    stroke={filled ? "#ff4d4f" : "#ffffff"}
     strokeWidth="2"
     style={{ filter: "drop-shadow(0px 2px 4px rgba(0,0,0,0.2))", transition: "all 0.2s" }}
   >
@@ -57,6 +53,7 @@ export default function HomePage() {
   const [searchText, setSearchText] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const ITEMS_PER_PAGE = 12;
+  const [brands, setBrands] = useState([]); // 브랜드 목록 상태 추가
 
   const [selectedCar, setSelectedCar] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -76,14 +73,26 @@ export default function HomePage() {
   const fetchMyFavorites = useCallback(async (uid) => {
     if (!uid) return;
     try {
+      console.log("💖 [fetchMyFavorites] 찜 목록 조회 시작:", uid);
       const res = await fetch(`/api/favorites/list?userId=${uid}`);
       if (res.ok) {
         const data = await res.json();
-        const ids = new Set(data.map(item => item.vehicleId ? item.vehicleId._id : null).filter(id => id));
+        console.log("💖 [fetchMyFavorites] 찜 목록 응답:", data);
+        // vehicleId가 populate된 경우 lineup_id를 우선 사용, 없으면 _id 사용
+        const ids = new Set(data.map(item => {
+          if (!item.vehicleId) return null;
+          // lineup_id가 있으면 lineup_id 사용 (문자열), 없으면 _id 사용 (ObjectId 문자열)
+          const id = item.vehicleId.lineup_id || (item.vehicleId._id ? String(item.vehicleId._id) : null);
+          console.log("💖 [fetchMyFavorites] 추출된 ID:", id, "from vehicleId:", item.vehicleId);
+          return id;
+        }).filter(id => id));
+        console.log("💖 [fetchMyFavorites] 최종 찜 ID 목록:", Array.from(ids));
         setLikedVehicleIds(ids);
+      } else {
+        console.error("💖 [fetchMyFavorites] API 응답 실패:", res.status);
       }
     } catch (err) {
-      console.error("찜 목록 로딩 에러:", err);
+      console.error("💖 [fetchMyFavorites] 찜 목록 로딩 에러:", err);
     }
   }, []);
 
@@ -122,8 +131,51 @@ export default function HomePage() {
     fetchRankings();
   }, []);
 
+  // 브랜드 목록 가져오기 (로고 포함)
   useEffect(() => {
-    fetchMainData()
+    fetchBrandsWithLogo()
+      .then((brandList) => {
+        // "전체" 옵션을 맨 앞에 추가
+        const allBrand = { name: "전체", logo_url: "" };
+        const sortedBrands = [allBrand, ...brandList];
+        
+        // 브랜드 정렬: "전체" -> "현대", "기아", "제네시스", "쉐보레" -> 나머지 한글 순서
+        const priorityBrands = ["현대", "기아", "제네시스", "쉐보레"];
+        const priorityList = [];
+        const normalList = [];
+        
+        brandList.forEach((brand) => {
+          if (priorityBrands.includes(brand.name)) {
+            priorityList.push(brand);
+          } else {
+            normalList.push(brand);
+          }
+        });
+        
+        // 우선순위 브랜드는 지정된 순서대로 정렬
+        priorityList.sort((a, b) => {
+          const indexA = priorityBrands.indexOf(a.name);
+          const indexB = priorityBrands.indexOf(b.name);
+          return indexA - indexB;
+        });
+        
+        // 일반 브랜드는 한글 순서로 정렬
+        normalList.sort((a, b) => {
+          return a.name.localeCompare(b.name, 'ko');
+        });
+        
+        setBrands([allBrand, ...priorityList, ...normalList]);
+      })
+      .catch((err) => {
+        console.error("브랜드 목록 로딩 실패:", err);
+        // 실패 시 기본값 설정
+        setBrands([{ name: "전체", logo_url: "" }]);
+      });
+  }, []);
+
+  useEffect(() => {
+    setLoading(true);
+    fetchMainData(selectedBrand === "전체" ? undefined : selectedBrand)
       .then((data) => {
         let cars = [];
         if (data.carList && Array.isArray(data.carList)) cars = data.carList;
@@ -137,7 +189,7 @@ export default function HomePage() {
         setErrorMsg("데이터 로딩 실패");
         setLoading(false);
       });
-  }, []);
+  }, [selectedBrand]);
 
   useEffect(() => { setCurrentPage(1); }, [selectedBrand]);
 
@@ -147,16 +199,18 @@ export default function HomePage() {
     router.push(`/search?keyword=${encodeURIComponent(searchText.trim())}`);
   };
 
-  const formatPrice = (price) => {
-    if (!price) return "가격 정보 없음";
-    return (Number(price) / 10000).toLocaleString() + "만원";
+  const formatPrice = (minPrice, maxPrice) => {
+    if (!minPrice && !maxPrice) return "가격 정보 없음";
+    const min = minPrice ? (Number(minPrice) / 10000).toLocaleString() : "";
+    const max = maxPrice ? (Number(maxPrice) / 10000).toLocaleString() : "";
+    if (min === max) {
+      return min + "만원";
+    }
+    return min + "만원 ~ " + max + "만원";
   };
 
-  const filteredCars = carList.filter((car) => {
-    if (!car) return false;
-    const carBrand = car.manufacturer || car.brand || "기타";
-    return selectedBrand === "전체" ? true : carBrand === selectedBrand;
-  });
+  // 서버에서 이미 필터링된 데이터를 받으므로 클라이언트 필터링 제거
+  const filteredCars = carList;
 
   const totalPages = Math.max(1, Math.ceil(filteredCars.length / ITEMS_PER_PAGE));
   const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
@@ -196,26 +250,39 @@ export default function HomePage() {
       alert("로그인이 필요합니다.");
       return;
     }
-    const vehicleId = car._id || car.id;
-    if (!vehicleId) return;
+    const vehicleId = car.vehicleId || car._id || car.id;
+    if (!vehicleId) {
+      console.error("차량 ID를 찾을 수 없습니다:", car);
+      return;
+    }
+    // vehicleId를 문자열로 변환
+    const vehicleIdStr = String(vehicleId);
 
     const nextLikedIds = new Set(likedVehicleIds);
-    if (nextLikedIds.has(vehicleId)) {
-      nextLikedIds.delete(vehicleId);
+    if (nextLikedIds.has(vehicleIdStr)) {
+      nextLikedIds.delete(vehicleIdStr);
     } else {
-      nextLikedIds.add(vehicleId);
+      nextLikedIds.add(vehicleIdStr);
     }
     setLikedVehicleIds(nextLikedIds);
 
     try {
+      console.log("💖 [하트 클릭] 요청 데이터:", { userId, vehicleId });
       const res = await fetch('/api/favorites/toggle', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId, vehicleId })
+        body: JSON.stringify({ userId, vehicleId: vehicleIdStr })
       });
-      if (!res.ok) throw new Error("API Fail");
+      console.log("💖 [하트 클릭] 응답 상태:", res.status, res.statusText);
+      if (!res.ok) {
+        const errorText = await res.text();
+        console.error("💖 [하트 클릭] API 실패 상세:", errorText);
+        throw new Error(`API Fail: ${res.status} ${res.statusText} - ${errorText}`);
+      }
+      const result = await res.json();
+      console.log("💖 [하트 클릭] 성공:", result);
     } catch (err) {
-      console.error("찜 토글 실패:", err);
+      console.error("💖 [하트 클릭] 찜 토글 실패:", err);
       fetchMyFavorites(userId);
     }
   };
@@ -243,7 +310,7 @@ export default function HomePage() {
           <p style={{ fontSize: "14px", color: "#6b7280", marginBottom: "22px" }}>차종이나 모델명으로 검색할 수 있어요</p>
           <form onSubmit={handleSearchSubmit} style={{ display: "inline-flex", alignItems: "center", gap: "12px" }}>
             <div style={{ position: "relative", width: "720px", maxWidth: "90vw" }}>
-              <input type="text" placeholder="검색 (예: 그랜저)" value={searchText} onChange={(e) => setSearchText(e.target.value)} style={{ width: "100%", height: "56px", padding: "0 22px", borderRadius: "999px", border: "1px solid #e5e7eb", fontSize: "17px", outline: "none" }} />
+              <input type="text" placeholder="어떤 차를 찾으세요?" value={searchText} onChange={(e) => setSearchText(e.target.value)} style={{ width: "100%", height: "56px", padding: "0 22px", borderRadius: "999px", border: "1px solid #e5e7eb", fontSize: "17px", outline: "none" }} />
             </div>
             <button type="submit" style={{ width: "54px", height: "54px", borderRadius: "50%", border: "none", backgroundColor: "#3b82f6", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}>
               <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="11" cy="11" r="7" stroke="white" strokeWidth="2.5" /><line x1="16.5" y1="16.5" x2="21" y2="21" stroke="white" strokeWidth="2.5" strokeLinecap="round" /></svg>
@@ -270,7 +337,33 @@ export default function HomePage() {
         <section className="brand-section" style={{ marginTop: "40px", padding: "0 40px 60px" }}>
           <h2 style={{ fontSize: "26px", fontWeight: "700", color: "#111111", marginBottom: "18px" }}>브랜드로 차량을 찾아보세요</h2>
           <div style={{ backgroundColor: "#f5f5f7", borderRadius: "14px", padding: "14px 18px", marginBottom: "24px" }}>
-            <div className="brand-tabs">{brands.map((b) => <button key={b} className={b === selectedBrand ? "brand-btn brand-btn-active" : "brand-btn"} onClick={() => setSelectedBrand(b)}>{b}</button>)}</div>
+            <div className="brand-tabs">
+              {brands.map((brand) => {
+                const brandName = typeof brand === 'string' ? brand : brand.name;
+                const logoUrl = typeof brand === 'object' ? brand.logo_url : '';
+                const isSelected = brandName === selectedBrand;
+                
+                return (
+                  <button
+                    key={brandName}
+                    className={isSelected ? "brand-btn brand-btn-active" : "brand-btn"}
+                    onClick={() => setSelectedBrand(brandName)}
+                  >
+                    {logoUrl && (
+                      <img
+                        src={logoUrl}
+                        alt={brandName}
+                        onError={(e) => {
+                          // 이미지 로드 실패 시 숨김
+                          e.target.style.display = 'none';
+                        }}
+                      />
+                    )}
+                    <span>{brandName}</span>
+                  </button>
+                );
+              })}
+            </div>
           </div>
 
           <div className="car-list" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(240px, 1fr))", gap: "18px 20px" }}>
@@ -278,8 +371,10 @@ export default function HomePage() {
             {!loading && filteredCars.length === 0 && <p style={{ gridColumn: "1/-1", textAlign: "center" }}>차량이 없습니다.</p>}
 
             {paginatedCars.map((car, idx) => {
-              const vehicleId = car._id || car.id;
-              const isLiked = likedVehicleIds.has(vehicleId);
+              const vehicleId = car.vehicleId || car._id || car.id;
+              // vehicleId를 문자열로 변환하여 비교 (lineup_id는 이미 문자열)
+              const vehicleIdStr = String(vehicleId);
+              const isLiked = likedVehicleIds.has(vehicleIdStr);
 
               return (
                 <div
@@ -296,12 +391,12 @@ export default function HomePage() {
                 >
                   <div style={{ width: "100%", height: "120px", display: "flex", alignItems: "center", justifyContent: "center", position: "relative" }}>
                     {car.imageUrl ? <img src={car.imageUrl} alt={car.name} style={{ maxWidth: "100%", maxHeight: "100%", objectFit: "contain" }} /> : <span style={{ color: "#ccc", fontSize: "13px" }}>이미지 없음</span>}
-                    
+
                     {/* 💖 메인 화면 하트 버튼 (위치: 이미지 우측 하단 여백) */}
                     <button
                       onClick={(e) => handleHeartClick(e, car)}
                       style={{
-                        position: "absolute", 
+                        position: "absolute",
                         bottom: "-15px", // 🔹 수정: 빨간 네모 위치에 맞게 더 아래로 이동
                         right: "5px",
                         zIndex: 10,
@@ -314,7 +409,7 @@ export default function HomePage() {
 
                   <div style={{ textAlign: "left" }}>
                     <p style={{ fontSize: "14px", fontWeight: 600, marginBottom: "4px" }}>[{car.manufacturer || "미분류"}] {car.name}</p>
-                    <p style={{ fontSize: "13px", color: "#2563eb", marginBottom: "6px" }}>{formatPrice(car.minPrice)} ~</p>
+                    <p style={{ fontSize: "13px", color: "#2563eb", marginBottom: "6px" }}>{formatPrice(car.minPrice, car.maxPrice)}</p>
                     <button className="car-detail-btn" style={{ marginTop: "2px", padding: "6px 12px", borderRadius: "999px", border: "none", backgroundColor: "#2563eb", color: "#ffffff", fontSize: "12px", cursor: "pointer" }}>상세보기</button>
                   </div>
                 </div>
@@ -322,7 +417,121 @@ export default function HomePage() {
             })}
           </div>
 
-          {filteredCars.length > 0 && <div className="pagination" style={{ marginTop: "24px" }}>{Array.from({ length: totalPages }, (_, i) => <button key={i + 1} onClick={() => setCurrentPage(i + 1)} className={i + 1 === currentPage ? "page-btn page-btn-active" : "page-btn"}>{i + 1}</button>)}</div>}
+          {filteredCars.length > 0 && (() => {
+            const MAX_VISIBLE_PAGES = 10;
+            let startPage = Math.max(1, currentPage - Math.floor(MAX_VISIBLE_PAGES / 2));
+            let endPage = Math.min(totalPages, startPage + MAX_VISIBLE_PAGES - 1);
+            
+            // 끝 페이지가 totalPages에 가까우면 시작 페이지를 조정
+            if (endPage - startPage < MAX_VISIBLE_PAGES - 1) {
+              startPage = Math.max(1, endPage - MAX_VISIBLE_PAGES + 1);
+            }
+            
+            const visiblePages = Array.from({ length: endPage - startPage + 1 }, (_, i) => startPage + i);
+            
+            return (
+              <div className="pagination" style={{ marginTop: "24px", display: "flex", alignItems: "center", justifyContent: "center", gap: "8px" }}>
+                {/* 이전 페이지 화살표 */}
+                <button
+                  onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
+                  disabled={currentPage === 1}
+                  style={{
+                    width: "36px",
+                    height: "36px",
+                    borderRadius: "50%",
+                    border: "1px solid #e5e7eb",
+                    backgroundColor: currentPage === 1 ? "#f5f5f5" : "#ffffff",
+                    color: currentPage === 1 ? "#ccc" : "#333",
+                    cursor: currentPage === 1 ? "not-allowed" : "pointer",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    fontSize: "18px",
+                    fontWeight: 600,
+                    transition: "all 0.2s ease",
+                  }}
+                  onMouseEnter={(e) => {
+                    if (currentPage !== 1) {
+                      e.currentTarget.style.backgroundColor = "#f0f0f0";
+                    }
+                  }}
+                  onMouseLeave={(e) => {
+                    if (currentPage !== 1) {
+                      e.currentTarget.style.backgroundColor = "#ffffff";
+                    }
+                  }}
+                >
+                  ‹
+                </button>
+                
+                {/* 페이지 번호 버튼들 */}
+                {visiblePages.map((page) => (
+                  <button
+                    key={page}
+                    onClick={() => setCurrentPage(page)}
+                    className={page === currentPage ? "page-btn page-btn-active" : "page-btn"}
+                    style={{
+                      minWidth: "36px",
+                      height: "36px",
+                      borderRadius: "50%",
+                      border: page === currentPage ? "none" : "1px solid #e5e7eb",
+                      backgroundColor: page === currentPage ? "#2563eb" : "#ffffff",
+                      color: page === currentPage ? "#ffffff" : "#333",
+                      cursor: "pointer",
+                      fontSize: "14px",
+                      fontWeight: page === currentPage ? 700 : 500,
+                      transition: "all 0.2s ease",
+                    }}
+                    onMouseEnter={(e) => {
+                      if (page !== currentPage) {
+                        e.currentTarget.style.backgroundColor = "#f0f0f0";
+                      }
+                    }}
+                    onMouseLeave={(e) => {
+                      if (page !== currentPage) {
+                        e.currentTarget.style.backgroundColor = "#ffffff";
+                      }
+                    }}
+                  >
+                    {page}
+                  </button>
+                ))}
+                
+                {/* 다음 페이지 화살표 */}
+                <button
+                  onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
+                  disabled={currentPage === totalPages}
+                  style={{
+                    width: "36px",
+                    height: "36px",
+                    borderRadius: "50%",
+                    border: "1px solid #e5e7eb",
+                    backgroundColor: currentPage === totalPages ? "#f5f5f5" : "#ffffff",
+                    color: currentPage === totalPages ? "#ccc" : "#333",
+                    cursor: currentPage === totalPages ? "not-allowed" : "pointer",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    fontSize: "18px",
+                    fontWeight: 600,
+                    transition: "all 0.2s ease",
+                  }}
+                  onMouseEnter={(e) => {
+                    if (currentPage !== totalPages) {
+                      e.currentTarget.style.backgroundColor = "#f0f0f0";
+                    }
+                  }}
+                  onMouseLeave={(e) => {
+                    if (currentPage !== totalPages) {
+                      e.currentTarget.style.backgroundColor = "#ffffff";
+                    }
+                  }}
+                >
+                  ›
+                </button>
+              </div>
+            );
+          })()}
         </section>
 
         <BrandTestDriveSection />
@@ -346,3 +555,4 @@ const bannerCarouselStyles = {
   dots: { position: "absolute", bottom: "8px", left: "50%", transform: "translateX(-50%)", display: "flex", gap: "8px", zIndex: 5 },
   dot: { height: "8px", borderRadius: "999px", backgroundColor: "#555", cursor: "pointer", transition: "all 0.3s" },
 };
+

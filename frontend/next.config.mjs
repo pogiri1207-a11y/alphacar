@@ -13,10 +13,21 @@ const nextConfig = {
       },
 
       // ----------------------------------------------------
+      // ★ [MAIN SERVICE - 3002 포트] (차량 상세 정보)
+      // ----------------------------------------------------
+      
+      // 1. [차량 상세 정보] /api/vehicles/detail은 main 서비스(3002)로 보냅니다.
+      // 쿼리 파라미터는 자동으로 전달되므로 별도 처리 불필요
+      {
+        source: '/api/vehicles/detail',
+        destination: 'http://192.168.0.160:3002/vehicles/detail',
+      },
+      
+      // ----------------------------------------------------
       // ★ [QUOTE SERVICE - 3003 포트] (유연성 확보)
       // ----------------------------------------------------
       
-      // 1. [핵심] /api/vehicles/* 경로를 3003 포트로 보냅니다.
+      // 2. [나머지 차량 관련] /api/vehicles/* 경로를 3003 포트로 보냅니다.
       {
         source: '/api/vehicles/:path*',
         destination: 'http://192.168.0.160:3003/api/vehicles/:path*',
@@ -48,6 +59,12 @@ const nextConfig = {
       {
         source: '/api/main/:path*',
         destination: 'http://192.168.0.160:3002/main/:path*',
+      },
+      
+      // 5. [찜하기 기능] (3002)
+      {
+        source: '/api/favorites/:path*',
+        destination: 'http://192.168.0.160:3002/favorites/:path*',
       },
       
       // 5. [다른 서비스]

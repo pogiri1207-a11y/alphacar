@@ -14,38 +14,116 @@ export class AppService {
         @InjectModel(Vehicle.name) private vehicleModel: Model<VehicleDocument>,
     ) {}
 
-    // 1. 제조사 목록
+    // 1. 제조사 목록 (danawa_vehicle_data에서 실제 존재하는 브랜드만 반환)
     async getManufacturers() {
-        return this.manufacturerModel.find({}, { name: 1, _id: 1 }).lean().exec();
+        // danawa_vehicle_data 컬렉션에서 실제 존재하는 브랜드 목록 가져오기
+        const brands = await this.vehicleModel.aggregate([
+            {
+                $match: {
+                    $and: [
+                        { brand_name: { $exists: true } },
+                        { brand_name: { $ne: null } },
+                        { brand_name: { $ne: '' } }
+                    ]
+                }
+            },
+            {
+                $group: {
+                    _id: '$brand_name',
+                    count: { $sum: 1 }
+                }
+            },
+            {
+                $sort: { _id: 1 }
+            },
+            {
+                $project: {
+                    _id: 0,
+                    name: '$_id',
+                    id: '$_id' // 브랜드 이름을 ID로 사용
+                }
+            }
+        ]).exec();
+        
+        // _id 필드 추가 (프론트엔드 호환성)
+        return brands.map(brand => ({
+            _id: brand.id,
+            name: brand.name
+        }));
     }
 
-    // 2. 모델 목록
+    // 2. 모델(차종) 목록 (브랜드 이름으로 직접 조회)
     async getModelsByManufacturer(makerId: string) {
         if (!makerId) return [];
-        let maker;
-        try {
-            if (Types.ObjectId.isValid(makerId)) {
-                maker = await this.manufacturerModel.findById(makerId).lean().exec();
-            }
-            if (!maker) {
-                maker = await this.manufacturerModel.findOne({ _id: makerId } as any).lean().exec();
-            }
-        } catch (e) { return []; }
-
-        if (!maker) return [];
-
-        return this.vehicleModel
-            .find({ brand_name: maker.name }, { vehicle_name: 1, _id: 1, main_image: 1 })
+        
+        // makerId가 브랜드 이름일 수 있으므로 직접 사용
+        const brandName = makerId;
+        
+        const vehicles = await this.vehicleModel
+            .find({ brand_name: brandName }, { vehicle_name: 1, _id: 1, main_image: 1, base_trim_name: 1 })
             .lean()
-            .exec()
-            .then(docs => docs.map(doc => ({
-                _id: doc._id.toString(),
-                model_name: doc.vehicle_name,
-                image: doc.main_image
-            })));
+            .exec();
+        
+        // 중복 제거 (같은 vehicle_name을 가진 차량은 하나로)
+        const uniqueModels = Array.from(
+            new Map(vehicles.map(v => [v.vehicle_name, v])).values()
+        );
+        
+        return uniqueModels.map(doc => ({
+            _id: doc._id.toString(),
+            model_name: doc.vehicle_name,
+            image: doc.main_image,
+            base_trim_name: doc.base_trim_name
+        }));
     }
 
-    // 3. 트림 목록 (네이티브 쿼리)
+    // 3. 기본 트림 목록 (차종별로 그룹화된 기본 트림)
+    // 실제로는 vehicle 레벨의 base_trim_name을 반환하거나, trims를 그룹화
+    async getBaseTrimsByModel(vehicleId: string) {
+        if (!vehicleId) return [];
+
+        try {
+            let vehicle: any = null;
+            vehicle = await this.vehicleModel.collection.findOne({ _id: vehicleId } as any);
+
+            if (!vehicle && Types.ObjectId.isValid(vehicleId)) {
+                vehicle = await this.vehicleModel.collection.findOne({ _id: new Types.ObjectId(vehicleId) } as any);
+            }
+
+            if (!vehicle) return [];
+            if (!vehicle.trims || vehicle.trims.length === 0) return [];
+
+            // vehicle 레벨의 base_trim_name이 있으면 그것을 사용
+            if (vehicle.base_trim_name) {
+                return [{
+                    _id: vehicle.base_trim_name,
+                    id: vehicle.base_trim_name,
+                    name: vehicle.base_trim_name,
+                    base_trim_name: vehicle.base_trim_name,
+                    vehicle_id: vehicleId,
+                    vehicle_name: vehicle.vehicle_name
+                }];
+            }
+
+            // base_trim_name이 없으면 trims의 첫 번째 트림 이름을 기본 트림으로 사용
+            const firstTrim = vehicle.trims[0];
+            const baseTrimName = firstTrim?.trim_name || '기본';
+            
+            return [{
+                _id: baseTrimName,
+                id: baseTrimName,
+                name: baseTrimName,
+                base_trim_name: baseTrimName,
+                vehicle_id: vehicleId,
+                vehicle_name: vehicle.vehicle_name
+            }];
+        } catch (e) {
+            console.error(e);
+            return [];
+        }
+    }
+
+    // 4. 세부 트림 목록 (기본 트림 선택 후)
     async getTrimsByModel(vehicleId: string) {
         if (!vehicleId) return [];
 
@@ -67,7 +145,8 @@ export class AppService {
                 trim_name: trim.trim_name,
                 base_price: trim.price,
                 price: trim.price,
-                price_formatted: trim.price_formatted
+                price_formatted: trim.price_formatted,
+                options: trim.options || []
             }));
 
         } catch (e) {
