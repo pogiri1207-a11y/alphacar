@@ -1,17 +1,18 @@
-# 1. 의존성 설치 (Node 20 사용!)
+# 1. 의존성 설치 (20 버전!)
 FROM node:20-alpine AS deps
 WORKDIR /app
 COPY package.json package-lock.json ./
 RUN npm ci
 
-# 2. 빌드 (Node 20 사용!)
+# 2. 빌드 (★★★ 여기도 20 버전이어야 합니다! ★★★)
 FROM node:20-alpine AS builder
 WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
+# standalone 모드 빌드
 RUN npm run build
 
-# 3. 실행 (Node 20 사용!)
+# 3. 실행 (여기도 20 버전!)
 FROM node:20-alpine AS runner
 WORKDIR /app
 ENV NODE_ENV production
