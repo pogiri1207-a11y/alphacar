@@ -163,7 +163,8 @@ export async function fetchBrands(): Promise<Brand[]> {
 // ✅ [추가] 브랜드 목록 (로고 포함) 가져오기
 export type BrandWithLogo = { name: string; logo_url: string; };
 export async function fetchBrandsWithLogo(): Promise<BrandWithLogo[]> {
-  const res = await fetch(`/api/makers-with-logo`, { method: "GET" });
+  // /api/brands 엔드포인트 사용 (makers-with-logo도 지원하지만 brands가 더 안정적)
+  const res = await fetch(`/api/brands`, { method: "GET" });
   if (!res.ok) throw new Error("브랜드 목록 불러오기 실패");
   return res.json();
 }

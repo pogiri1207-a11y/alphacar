@@ -64,10 +64,11 @@ function SearchContent() {
             return {
               _id: item.id,
               vehicle_name: item.name, // 예: "[현대] 그랜저"
+              trim_name: item.trimName || null, // 트림 이름 추가
               manufacturer: manufacturer,
               brandName: item.brandName || manufacturer,
               logoUrl: item.logoUrl || '',
-              model_year: "-", // 연식 정보 없음
+              model_year: "-", // 연식 정보 없음 (표시하지 않음)
               fuel_type: "정보없음", // 연료 정보 없음
               photos: {
                 representative_image: {
@@ -282,16 +283,19 @@ function SearchContent() {
                         color: "#222",
                       }}
                     >
-                      {car.vehicle_name}{" "}
-                      <span
-                        style={{
-                          fontSize: "16px",
-                          fontWeight: "normal",
-                          color: "#888",
-                        }}
-                      >
-                        ({car.model_year}년형)
-                      </span>
+                      {car.vehicle_name}
+                      {car.trim_name && (
+                        <span
+                          style={{
+                            fontSize: "18px",
+                            fontWeight: "600",
+                            color: "#0070f3",
+                            marginLeft: "8px",
+                          }}
+                        >
+                          {car.trim_name}
+                        </span>
+                      )}
                     </h2>
                     <p
                       style={{

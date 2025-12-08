@@ -1,39 +1,55 @@
-// frontend/app/mypage/page.js
+// frontend/app/mypage/page.tsx
 "use client";
 
 import { useRouter, useSearchParams } from "next/navigation";
-import { useState, useEffect } from "react";
+import { useState, useEffect, Suspense } from "react";
 import axios from "axios";
-// ✅ 백엔드에서 쓰는 마이페이지 정보 API
+// @ts-ignore (lib/api 파일이 JS라면 TS 에러 방지용)
 import { fetchMypageInfo } from "@/lib/api";
-import SimpleModal from "../components/SimpleModal"; // 🔹 모달 추가
+import SimpleModal from "../components/SimpleModal";
 
-// ✅ 인증 정보 전체 삭제 함수 (로그아웃/오류 시 공통 사용)
+// ✅ 타입 정의 (TypeScript의 핵심)
+interface User {
+  nickname?: string;
+  name?: string;
+  email?: string;
+  provider?: string;
+  point?: number;
+  socialId?: string;
+  [key: string]: any; // 기타 속성 허용
+}
+
+// ✅ 인증 정보 전체 삭제 함수
 const clearAuthStorage = () => {
   if (typeof window !== "undefined") {
     localStorage.removeItem("accessToken");
     localStorage.removeItem("alphacarUser");
-    localStorage.removeItem("user_social_id"); // 소셜 ID도 함께 삭제
-    localStorage.removeItem("alphacarWelcomeName"); // 환영 모달용 이름도 삭제
+    localStorage.removeItem("user_social_id");
+    localStorage.removeItem("alphacarWelcomeName");
   }
 };
 
-export default function MyPage() {
+// ---------------------------------------------------------
+// 1️⃣ 실제 로직이 들어있는 내부 컴포넌트 (기존 MyPage 내용)
+// ---------------------------------------------------------
+function MyPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const code = searchParams.get("code"); // 소셜 로그인 code
-  const state = searchParams.get("state"); // kakao / google
+  
+  // URL 파라미터 가져오기
+  const code = searchParams.get("code");
+  const state = searchParams.get("state");
 
   const [showBanner, setShowBanner] = useState(true);
 
-  // 로그인 유저 정보
-  const [user, setUser] = useState(null);
+  // 로그인 유저 정보 타입 적용
+  const [user, setUser] = useState<User | null>(null);
   const [checkedAuth, setCheckedAuth] = useState(false);
 
   // 견적 개수 상태 관리
   const [estimateCount, setEstimateCount] = useState(0);
 
-  // 🔹 모달 상태
+  // 모달 상태
   const [showWelcomeModal, setShowWelcomeModal] = useState(false);
   const [welcomeName, setWelcomeName] = useState("");
   const [showLogoutModal, setShowLogoutModal] = useState(false);
@@ -43,7 +59,7 @@ export default function MyPage() {
     const processAuth = async () => {
       setCheckedAuth(false);
 
-      // Case 1: 소셜 로그인 직후 (URL에 code가 들어온 상태)
+      // Case 1: 소셜 로그인 직후
       if (code) {
         try {
           let response;
@@ -62,25 +78,19 @@ export default function MyPage() {
 
           const { access_token, user: loggedInUser } = response.data;
 
-          // ⭐ provider가 안 넘어오면 강제로 주입
           if (!loggedInUser.provider) {
             loggedInUser.provider = state === "google" ? "google" : "kakao";
           }
 
-          // ✅ 백엔드에서 사용하는 socialId 저장
           if (loggedInUser.socialId) {
             localStorage.setItem("user_social_id", loggedInUser.socialId);
           } else {
-            console.warn(
-              "로그인 응답에 socialId가 없습니다. 인증이 불안정할 수 있습니다."
-            );
+            console.warn("로그인 응답에 socialId가 없습니다.");
           }
 
-          // 토큰 & 유저 정보 저장
           localStorage.setItem("accessToken", access_token);
           localStorage.setItem("alphacarUser", JSON.stringify(loggedInUser));
 
-          // 🔹 예전 alert 대신, 환영 이름만 localStorage에 미리 저장
           const welcome =
             loggedInUser.nickname ||
             loggedInUser.name ||
@@ -88,7 +98,6 @@ export default function MyPage() {
             "ALPHACAR 회원";
           localStorage.setItem("alphacarWelcomeName", welcome);
 
-          // URL 의 code/state 제거 후 다시 /mypage 로 진입
           router.replace("/mypage");
           return;
         } catch (error) {
@@ -115,7 +124,6 @@ export default function MyPage() {
           }
           setUser(data.user);
 
-          // 🔹 방금 로그인한 경우라면 저장해 둔 환영 이름으로 모달 띄우기
           const storedWelcome = localStorage.getItem("alphacarWelcomeName");
           if (storedWelcome) {
             setWelcomeName(storedWelcome);
@@ -138,7 +146,7 @@ export default function MyPage() {
     processAuth();
   }, [code, router, state]);
 
-  // 로그인된 유저가 있다면 견적 개수(포트 3003) 가져오기
+  // 견적 개수 가져오기
   useEffect(() => {
     if (user) {
       const socialId = localStorage.getItem("user_social_id");
@@ -168,12 +176,10 @@ export default function MyPage() {
     }
   }, [user]);
 
-  // 🔹 로그아웃 버튼 클릭 → 모달 열기
   const handleLogout = () => {
     setShowLogoutModal(true);
   };
 
-  // 🔹 로그아웃 모달에서 "로그아웃" 클릭
   const handleLogoutConfirm = () => {
     clearAuthStorage();
     setUser(null);
@@ -192,10 +198,8 @@ export default function MyPage() {
     );
   }
 
-  // ✅ provider 소문자 처리
   const provider = user?.provider ? user.provider.toLowerCase() : "email";
 
-  // 🔻 UI 렌더링
   return (
     <>
       <div
@@ -235,9 +239,6 @@ export default function MyPage() {
           }}
         >
           {user ? (
-            /* ===========================
-               ✅ 로그인 후 마이페이지 화면
-               =========================== */
             <div style={{ width: "100%", maxWidth: "520px" }}>
               {/* 프로필 영역 */}
               <section
@@ -248,7 +249,6 @@ export default function MyPage() {
                   alignItems: "flex-start",
                 }}
               >
-                {/* 왼쪽: 닉네임 및 정보 */}
                 <div>
                   <h1
                     style={{
@@ -269,7 +269,6 @@ export default function MyPage() {
                       fontSize: "14px",
                     }}
                   >
-                    {/* 로그인 제공자 배지 */}
                     <span
                       style={{
                         display: "inline-flex",
@@ -298,7 +297,6 @@ export default function MyPage() {
                   </div>
                 </div>
 
-                {/* 로그아웃 버튼 */}
                 <button
                   onClick={handleLogout}
                   style={{
@@ -329,7 +327,6 @@ export default function MyPage() {
                   backgroundColor: "#fff",
                 }}
               >
-                {/* 견적함 버튼 */}
                 <button
                   type="button"
                   onClick={() => router.push("/mypage/quotes")}
@@ -356,7 +353,6 @@ export default function MyPage() {
                   </div>
                 </button>
 
-                {/* 포인트 버튼 */}
                 <button
                   type="button"
                   onClick={() => router.push("/mypage/points")}
@@ -410,8 +406,7 @@ export default function MyPage() {
                       alignItems: "center",
                       fontSize: "14px",
                       cursor: "pointer",
-                      borderTop:
-                        idx === 0 ? "none" : "1px solid #f3f4f6",
+                      borderTop: idx === 0 ? "none" : "1px solid #f3f4f6",
                     }}
                     onClick={() => router.push(item.href)}
                   >
@@ -422,10 +417,8 @@ export default function MyPage() {
               </section>
             </div>
           ) : (
-            /* ===========================
-               👤 로그인 전 화면
-               =========================== */
             <>
+              {/* 로그인 전 화면 */}
               <section
                 style={{
                   textAlign: "center",
@@ -481,23 +474,21 @@ export default function MyPage() {
                   }}
                 />
               </section>
-              {/* 🔸 비회원 견적함 섹션은 제거됨 */}
             </>
           )}
         </main>
       </div>
 
-      {/* ✅ 로그인 환영 모달 (기본 alert 대신) */}
       <SimpleModal
         open={showWelcomeModal}
         title="ALPHACAR"
         message={`${welcomeName}님 환영합니다!`}
         confirmText="확인"
+	cancelText=""
         onConfirm={() => setShowWelcomeModal(false)}
         onCancel={() => setShowWelcomeModal(false)}
       />
 
-      {/* ✅ 로그아웃 확인 모달 (기본 confirm/alert 대신) */}
       <SimpleModal
         open={showLogoutModal}
         title="로그아웃"
@@ -511,3 +502,14 @@ export default function MyPage() {
   );
 }
 
+// ---------------------------------------------------------
+// 2️⃣ [핵심] Suspense로 감싼 메인 페이지 컴포넌트
+// ---------------------------------------------------------
+export default function MyPage() {
+  return (
+    // ✨ useSearchParams를 쓰는 컴포넌트를 Suspense로 감싸야 빌드 에러가 해결됨
+    <Suspense fallback={<div style={{ padding: "60px" }}>로딩 중...</div>}>
+      <MyPageContent />
+    </Suspense>
+  );
+}

@@ -23,6 +23,8 @@ export default function CarDetailModal({ car, onClose }) {
   const [userId, setUserId] = useState(null);
   const [carDetail, setCarDetail] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [reviewData, setReviewData] = useState(null);
+  const [reviewLoading, setReviewLoading] = useState(true);
   
   // 색상 이미지 표시 개수 상태
   const [colorImagesCount, setColorImagesCount] = useState(4);
@@ -79,6 +81,28 @@ export default function CarDetailModal({ car, onClose }) {
         });
     } else {
       console.warn("⚠️ [모달] targetId가 없습니다. car 객체:", car);
+    }
+
+    // 리뷰 분석 데이터 가져오기
+    if (carName) {
+      setReviewLoading(true);
+      fetch(`/api/review-analysis?vehicleName=${encodeURIComponent(carName)}`)
+        .then(res => {
+          if (!res.ok) {
+            throw new Error(`HTTP error! status: ${res.status}`);
+          }
+          return res.json();
+        })
+        .then(data => {
+          console.log("📊 [리뷰 분석 데이터]:", data);
+          setReviewData(data);
+          setReviewLoading(false);
+        })
+        .catch(err => {
+          console.error("❌ [모달] 리뷰 분석 데이터 로딩 실패:", err);
+          setReviewData(null);
+          setReviewLoading(false);
+        });
     }
 
     if (storedUserId && targetId) {
@@ -251,9 +275,177 @@ export default function CarDetailModal({ car, onClose }) {
     console.log("🔍 [모달] interiorImages:", interiorImages.length);
   }
 
+  // 별점 렌더링 헬퍼
+  const renderStars = (rating) => {
+    const numRating = Number(rating) || 0;
+    const fullStars = Math.floor(numRating);
+    const hasHalfStar = numRating % 1 >= 0.5;
+    const emptyStars = Math.max(0, 5 - fullStars - (hasHalfStar ? 1 : 0));
+    
+    return (
+      <div style={{ display: "flex", alignItems: "center", gap: "4px" }}>
+        {Array.from({ length: fullStars }, (_, i) => (
+          <span key={`full-${i}`} style={{ color: "#ffc107", fontSize: "18px" }}>★</span>
+        ))}
+        {hasHalfStar && <span key="half" style={{ color: "#ffc107", fontSize: "18px" }}>☆</span>}
+        {Array.from({ length: emptyStars }, (_, i) => (
+          <span key={`empty-${i}`} style={{ color: "#ddd", fontSize: "18px" }}>★</span>
+        ))}
+        <span style={{ marginLeft: "8px", fontSize: "16px", fontWeight: 600, color: "#333" }}>
+          {numRating > 0 ? numRating.toFixed(1) : "0.0"}
+        </span>
+      </div>
+    );
+  };
+
   return (
-    <div style={{ position: "fixed", top: 0, left: 0, width: "100%", height: "100%", backgroundColor: "rgba(0, 0, 0, 0.5)", display: "flex", justifyContent: "center", alignItems: "flex-start", zIndex: 1000, overflowY: "auto", padding: "20px 10px" }} onClick={onClose}>
-      <div style={{ backgroundColor: "#fff", width: "90%", maxWidth: "600px", maxHeight: "90vh", borderRadius: "16px", padding: "30px 20px", position: "relative", boxShadow: "0 10px 25px rgba(0,0,0,0.2)", margin: "20px auto", overflowY: "auto" }} onClick={(e) => e.stopPropagation()}>
+    <div style={{ position: "fixed", top: 0, left: 0, width: "100%", height: "100%", backgroundColor: "rgba(0, 0, 0, 0.5)", display: "flex", justifyContent: "center", alignItems: "center", zIndex: 1000, overflowY: "auto", padding: "20px 10px" }} onClick={onClose}>
+      {/* 중앙 컨테이너: 리뷰 패널과 차량 정보 모달을 함께 묶음 */}
+      <div style={{ display: "flex", justifyContent: "center", alignItems: "flex-start", gap: "8px", maxWidth: "1200px", width: "100%" }}>
+        {/* 왼쪽 리뷰 정보 패널 */}
+        <div style={{ 
+          backgroundColor: "#fff", 
+          width: "350px", 
+          maxHeight: "90vh", 
+          borderRadius: "16px", 
+          padding: "24px 20px", 
+          boxShadow: "0 10px 25px rgba(0,0,0,0.2)", 
+          overflowY: "auto",
+          position: "relative"
+        }} onClick={(e) => e.stopPropagation()}>
+        <h3 style={{ fontSize: "20px", fontWeight: "bold", marginBottom: "20px", color: "#333", borderBottom: "2px solid #eee", paddingBottom: "12px" }}>
+          리뷰 분석
+        </h3>
+
+        {reviewLoading ? (
+          <div style={{ textAlign: "center", padding: "40px 20px", color: "#999", fontSize: "14px" }}>
+            리뷰 분석 중...
+          </div>
+        ) : reviewData ? (
+          <>
+            {/* 별점 */}
+            {(reviewData.average_score || reviewData.avg_rating) && (
+            <div style={{ marginBottom: "20px" }}>
+              <div style={{ fontSize: "14px", color: "#666", marginBottom: "8px" }}>평균 별점</div>
+              {renderStars(reviewData.average_score || reviewData.avg_rating)}
+              {reviewData.total_reviews && (
+                <div style={{ fontSize: "12px", color: "#999", marginTop: "4px" }}>
+                  ({reviewData.total_reviews}개 리뷰)
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* 긍정/부정 비율 */}
+          {reviewData.sentiment_ratio && (
+            <div style={{ marginBottom: "20px" }}>
+              <div style={{ fontSize: "14px", color: "#666", marginBottom: "8px" }}>감정 분석</div>
+              <div style={{ display: "flex", gap: "12px", alignItems: "center" }}>
+                <div style={{ flex: 1 }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "4px" }}>
+                    <span style={{ fontSize: "12px", color: "#22c55e", fontWeight: 600 }}>긍정</span>
+                    <span style={{ fontSize: "12px", color: "#666" }}>{reviewData.sentiment_ratio.positive || 0}%</span>
+                  </div>
+                  <div style={{ width: "100%", height: "8px", backgroundColor: "#e5e7eb", borderRadius: "4px", overflow: "hidden" }}>
+                    <div style={{ 
+                      width: `${reviewData.sentiment_ratio.positive || 0}%`, 
+                      height: "100%", 
+                      backgroundColor: "#22c55e",
+                      transition: "width 0.3s ease"
+                    }} />
+                  </div>
+                </div>
+                <div style={{ flex: 1 }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "4px" }}>
+                    <span style={{ fontSize: "12px", color: "#ef4444", fontWeight: 600 }}>부정</span>
+                    <span style={{ fontSize: "12px", color: "#666" }}>{reviewData.sentiment_ratio.negative || 0}%</span>
+                  </div>
+                  <div style={{ width: "100%", height: "8px", backgroundColor: "#e5e7eb", borderRadius: "4px", overflow: "hidden" }}>
+                    <div style={{ 
+                      width: `${reviewData.sentiment_ratio.negative || 0}%`, 
+                      height: "100%", 
+                      backgroundColor: "#ef4444",
+                      transition: "width 0.3s ease"
+                    }} />
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* 리뷰 요약 */}
+          {reviewData.summary && reviewData.summary.length > 0 && (
+            <div style={{ marginBottom: "20px" }}>
+              <div style={{ fontSize: "14px", color: "#666", marginBottom: "12px", fontWeight: 600 }}>리뷰 요약</div>
+              <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+                {reviewData.summary.map((item, idx) => (
+                  <div key={idx} style={{ 
+                    padding: "10px 12px", 
+                    backgroundColor: "#f8f9fa", 
+                    borderRadius: "8px", 
+                    fontSize: "13px", 
+                    color: "#333",
+                    lineHeight: "1.5"
+                  }}>
+                    {item}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* 장점 */}
+          {reviewData.pros && reviewData.pros.length > 0 && (
+            <div style={{ marginBottom: "20px" }}>
+              <div style={{ fontSize: "14px", color: "#666", marginBottom: "12px", fontWeight: 600 }}>장점</div>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: "6px" }}>
+                {reviewData.pros.map((item, idx) => (
+                  <span key={idx} style={{ 
+                    padding: "6px 12px", 
+                    backgroundColor: "#dcfce7", 
+                    color: "#166534", 
+                    borderRadius: "20px", 
+                    fontSize: "12px", 
+                    fontWeight: 500
+                  }}>
+                    {item}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* 단점 */}
+          {reviewData.cons && reviewData.cons.length > 0 && (
+            <div style={{ marginBottom: "20px" }}>
+              <div style={{ fontSize: "14px", color: "#666", marginBottom: "12px", fontWeight: 600 }}>단점</div>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: "6px" }}>
+                {reviewData.cons.map((item, idx) => (
+                  <span key={idx} style={{ 
+                    padding: "6px 12px", 
+                    backgroundColor: "#fee2e2", 
+                    color: "#991b1b", 
+                    borderRadius: "20px", 
+                    fontSize: "12px", 
+                    fontWeight: 500
+                  }}>
+                    {item}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
+
+          </>
+        ) : (
+          <div style={{ textAlign: "center", padding: "40px 20px", color: "#999", fontSize: "14px" }}>
+            리뷰 정보가 없습니다.
+          </div>
+        )}
+        </div>
+
+        {/* 기존 차량 상세 모달 (오른쪽) */}
+        <div style={{ backgroundColor: "#fff", width: "600px", maxHeight: "90vh", borderRadius: "16px", padding: "30px 20px", position: "relative", boxShadow: "0 10px 25px rgba(0,0,0,0.2)", overflowY: "auto" }} onClick={(e) => e.stopPropagation()}>
         <button onClick={onClose} style={{ position: "absolute", top: "15px", right: "15px", background: "none", border: "none", fontSize: "24px", cursor: "pointer", color: "#888", zIndex: 10 }}>✕</button>
 
         <div style={{ textAlign: "center" }}>
@@ -334,6 +526,7 @@ export default function CarDetailModal({ car, onClose }) {
           <button style={{ marginTop: "20px", width: "100%", padding: "12px 0", backgroundColor: "#0070f3", color: "white", border: "none", borderRadius: "8px", fontWeight: "bold", fontSize: "15px", cursor: "pointer" }} onClick={handleGoToQuoteResult}>
             상세 견적 확인하기
           </button>
+        </div>
         </div>
       </div>
     </div>

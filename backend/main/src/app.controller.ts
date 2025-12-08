@@ -83,6 +83,12 @@ export class AppController {
     return this.appService.getBrandsWithLogo();
   }
 
+  // 7. 브랜드 목록 조회 (GET /makers-with-logo) - logo_url 포함 (프론트엔드 호환성)
+  @Get('makers-with-logo')
+  async getMakersWithLogo() {
+    return this.appService.getBrandsWithLogo();
+  }
+
   @Get('models')
   async getModels(@Query('makerId') makerId: string) {
     return this.appService.getModelsByMaker(makerId);
@@ -91,6 +97,12 @@ export class AppController {
   @Get('trims')
   async getTrims(@Query('modelId') modelId: string) {
     return this.appService.getTrims(modelId);
+  }
+
+  // 8. 리뷰 분석 데이터 조회 (GET /review-analysis)
+  @Get('review-analysis')
+  async getReviewAnalysis(@Query('vehicleName') vehicleName: string) {
+    return this.appService.getReviewAnalysis(vehicleName);
   }
 
 }

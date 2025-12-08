@@ -187,25 +187,58 @@ export class VehicleService {
       if (efficiency) fuelEfficiencies.push(efficiency);
     }
 
+    // 선택된 트림 찾기
+    let selectedTrim: any = null;
+    const decodedTrimId = decodeURIComponent(trimId).trim();
+    const trimNameOnly = decodedTrimId.split(':')[0].trim();
+    
+    if (vehicle.trims && Array.isArray(vehicle.trims)) {
+      // ObjectId로 찾기
+      if (Types.ObjectId.isValid(trimId)) {
+        const objectId = new Types.ObjectId(trimId);
+        selectedTrim = vehicle.trims.find((t: any) => 
+          t._id && (t._id.toString() === trimId || t._id.toString() === objectId.toString())
+        );
+      }
+      
+      // 트림 이름으로 찾기
+      if (!selectedTrim) {
+        selectedTrim = vehicle.trims.find((t: any) => 
+          t.trim_name === trimNameOnly || t.trim_name === decodedTrimId
+        );
+      }
+      
+      // 부분 일치로 찾기
+      if (!selectedTrim) {
+        selectedTrim = vehicle.trims.find((t: any) => 
+          t.trim_name && t.trim_name.toLowerCase().includes(trimNameOnly.toLowerCase())
+        );
+      }
+      
+      // 첫 번째 트림을 기본값으로 사용
+      if (!selectedTrim && vehicle.trims.length > 0) {
+        selectedTrim = vehicle.trims[0];
+      }
+    }
+
     // 디버깅: 실제 데이터 확인
     this.logger.log(`📊 [디버깅] 차량 데이터 확인:`);
     this.logger.log(`   - release_date: ${vehicle.release_date}`);
     this.logger.log(`   - model_year: ${vehicle.model_year}`);
     this.logger.log(`   - trims 개수: ${vehicle.trims?.length || 0}`);
+    this.logger.log(`   - 선택된 트림: ${selectedTrim?.trim_name || '없음'}`);
     this.logger.log(`   - 배기량 추출 개수: ${displacements.length}`);
     this.logger.log(`   - 복합연비 추출 개수: ${fuelEfficiencies.length}`);
-    if (vehicle.trims && vehicle.trims.length > 0 && vehicle.trims[0].specifications) {
-      const firstSpecs = vehicle.trims[0].specifications;
-      this.logger.log(`   - 첫 번째 trim specifications 키: ${Object.keys(firstSpecs || {}).slice(0, 15).join(', ')}`);
-      if (firstSpecs.배기량) this.logger.log(`   - 첫 번째 trim 배기량: ${firstSpecs.배기량}`);
-      if (firstSpecs.복합연비) this.logger.log(`   - 첫 번째 trim 복합연비: ${firstSpecs.복합연비}`);
+    if (selectedTrim && selectedTrim.specifications) {
+      const specs = selectedTrim.specifications;
+      this.logger.log(`   - 선택된 트림 specifications 키: ${Object.keys(specs || {}).slice(0, 15).join(', ')}`);
     }
 
     // 응답 데이터 구성
     const result: any = {
       ...vehicle,
       _id: vehicle._id?.toString(),
-      // 제원 정보
+      // 제원 정보 (요약)
       specs: {
         release_date: vehicle.release_date || vehicle.model_year || null,
         displacement_range: displacements.length > 0 
@@ -215,6 +248,8 @@ export class VehicleService {
           ? { min: Math.min(...fuelEfficiencies), max: Math.max(...fuelEfficiencies) }
           : null,
       },
+      // 선택된 트림의 전체 specifications
+      selectedTrimSpecs: selectedTrim?.specifications || null,
       // 색상 이미지 (최대 4개씩만 반환)
       color_images: Array.isArray(vehicle.color_images) ? vehicle.color_images.slice(0, 4) : [],
       exterior_images: Array.isArray(vehicle.exterior_images) ? vehicle.exterior_images.slice(0, 4) : [],
@@ -260,9 +295,29 @@ export class VehicleService {
         if (!vehicleIds.length) return [];
         
         const promises = vehicleIds.map(async (id) => {
-            if (!Types.ObjectId.isValid(id)) return null;
-            const v: any = await this.vehicleModel.findById(id).lean().exec();
+            let v: any = null;
+            
+            // CASE 1: ObjectId 형식인 경우
+            if (Types.ObjectId.isValid(id)) {
+                v = await this.vehicleModel.findById(id).lean().exec();
+            }
+            
+            // CASE 2: ObjectId가 아니면 lineup_id로 검색
+            if (!v) {
+                v = await this.vehicleModel.findOne({ lineup_id: id }).lean().exec();
+            }
+            
+            // CASE 3: 여전히 못 찾으면 _id를 문자열로 변환해서 재시도
+            if (!v && Types.ObjectId.isValid(id)) {
+                try {
+                    v = await this.vehicleModel.findById(new Types.ObjectId(id)).lean().exec();
+                } catch (e) {
+                    // 무시
+                }
+            }
+            
             if (!v) return null;
+            
             return {
                 _id: v._id.toString(),
                 name: v.vehicle_name || v.name,
@@ -272,6 +327,9 @@ export class VehicleService {
             };
         });
         return (await Promise.all(promises)).filter(i => i !== null);
-    } catch (e) { return []; }
+    } catch (e) { 
+        console.error('[getRecentVehicles] 에러:', e);
+        return []; 
+    }
   }
 }

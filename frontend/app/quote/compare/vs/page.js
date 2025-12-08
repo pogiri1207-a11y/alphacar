@@ -322,22 +322,50 @@ function CompareVsContent() {
             <h3 style={{ fontSize: "16px", fontWeight: "bold", marginBottom: "16px", borderBottom: "2px solid #eee", paddingBottom: "10px" }}>선택 옵션 내역</h3>
             <div className="compare-grid">
               {[car1, car2].map((car, idx) => (
-                <div key={idx} style={{ backgroundColor: "#f8f9fa", borderRadius: "12px", padding: "16px", minHeight: "100px" }}>
-                  {car.selectedOptions.length > 0 ? (
-                    car.selectedOptions.map((opt, i) => (
-                      <div key={i} style={{ display: "flex", justifyContent: "space-between", fontSize: "13px", marginBottom: "8px", borderBottom: "1px dashed #eee", paddingBottom: "4px" }}>
-                        <span>{opt.name || opt.option_name}</span>
-                        <span style={{ fontWeight: "bold", color: "#555" }}>+{formatPrice(opt.price || opt.option_price)}</span>
-                      </div>
-                    ))
-                  ) : (
-                    <div style={{ textAlign: "center", color: "#999", fontSize: "13px", padding: "20px" }}>선택된 옵션 없음</div>
-                  )}
+                <div key={idx} style={{ backgroundColor: "#f8f9fa", borderRadius: "12px", padding: "16px", minHeight: "150px", display: "flex", flexDirection: "column" }}>
+                  <div style={{ flex: 1 }}>
+                    {car.selectedOptions.length > 0 ? (
+                      car.selectedOptions.map((opt, i) => (
+                        <div key={i} style={{ display: "flex", justifyContent: "space-between", fontSize: "13px", marginBottom: "8px", borderBottom: "1px dashed #eee", paddingBottom: "4px" }}>
+                          <span>{opt.name || opt.option_name}</span>
+                          <span style={{ fontWeight: "bold", color: "#555" }}>+{formatPrice(opt.price || opt.option_price)}</span>
+                        </div>
+                      ))
+                    ) : (
+                      <div style={{ textAlign: "center", color: "#999", fontSize: "13px", padding: "20px" }}>선택된 옵션 없음</div>
+                    )}
+                  </div>
                   {car.selectedOptions.length > 0 && (
-                    <div style={{ marginTop: "12px", textAlign: "right", fontSize: "14px", fontWeight: "bold", color: "#0052ff" }}>
+                    <div style={{ marginTop: "12px", textAlign: "right", fontSize: "14px", fontWeight: "bold", color: "#0052ff", borderTop: "1px solid #ddd", paddingTop: "12px" }}>
                       옵션 합계: +{formatPrice(car.optionTotal)}
                     </div>
                   )}
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* 최종 견적가 배너 */}
+          <div style={{ marginBottom: "40px" }}>
+            <h3 style={{ fontSize: "16px", fontWeight: "bold", marginBottom: "16px", borderBottom: "2px solid #eee", paddingBottom: "10px" }}>최종 견적가</h3>
+            <div className="final-price-banner">
+              {[car1, car2].map((car, idx) => (
+                <div key={idx} style={{ 
+                  backgroundColor: "#111", 
+                  borderRadius: "12px", 
+                  padding: "24px", 
+                  textAlign: "center",
+                  minHeight: "80px",
+                  display: "flex",
+                  flexDirection: "column",
+                  justifyContent: "center"
+                }}>
+                  <div style={{ fontSize: "14px", color: "#999", marginBottom: "8px" }}>
+                    {idx === 0 ? "차량 1" : "차량 2"}
+                  </div>
+                  <div style={{ fontSize: "28px", fontWeight: "800", color: "#ffd700" }}>
+                    {formatPrice(car.totalPrice)}
+                  </div>
                 </div>
               ))}
             </div>

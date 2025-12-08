@@ -5,12 +5,14 @@ import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { Vehicle, VehicleDocument } from '../schemas/vehicle.schema';
 import { Manufacturer, ManufacturerDocument } from './manufacturer.schema';
+import { ReviewAnalysis, ReviewAnalysisDocument } from './review-analysis.schema';
 
 @Injectable()
 export class AppService {
   constructor(
     @InjectModel(Vehicle.name) private vehicleModel: Model<VehicleDocument>,
     @InjectModel(Manufacturer.name) private manufacturerModel: Model<ManufacturerDocument>,
+    @InjectModel(ReviewAnalysis.name) private reviewAnalysisModel: Model<ReviewAnalysisDocument>,
   ) {}
 
   getHello(): string {
@@ -271,6 +273,22 @@ export class AppService {
     const vehicle = await this.vehicleModel.findById(vehicleId).exec();
     if (!vehicle) return [];
     return vehicle.trims || [];
+  }
+
+  // 리뷰 분석 데이터 조회
+  async getReviewAnalysis(vehicleName: string) {
+    if (!vehicleName) return null;
+    
+    try {
+      const analysis = await this.reviewAnalysisModel.findOne({ 
+        vehicle_name: vehicleName 
+      }).lean().exec();
+      
+      return analysis;
+    } catch (error) {
+      console.error('[getReviewAnalysis] 에러:', error);
+      return null;
+    }
   }
 }
 

@@ -12,6 +12,7 @@ import { RecentViewController } from './recent-view.controller';
 import { Vehicle, VehicleSchema } from '../schemas/vehicle.schema';
 // Manufacturer는 아직 공통으로 안 뺐다면 그대로 유지, 뺐다면 경로 수정 필요
 import { Manufacturer, ManufacturerSchema } from './manufacturer.schema';
+import { ReviewAnalysis, ReviewAnalysisSchema } from './review-analysis.schema';
 
 import { RedisModule } from './redis/redis.module';
 import { VehicleController } from './vehicle.controller';
@@ -34,6 +35,7 @@ import { FavoritesModule } from './favorites/favorites.module';
     MongooseModule.forFeature([
       { name: Vehicle.name, schema: VehicleSchema },
       { name: Manufacturer.name, schema: ManufacturerSchema },
+      { name: ReviewAnalysis.name, schema: ReviewAnalysisSchema },
     ]),
     RedisModule,
     SalesModule,

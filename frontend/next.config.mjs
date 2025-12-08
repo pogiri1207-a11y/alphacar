@@ -61,10 +61,38 @@ const nextConfig = {
         destination: 'http://192.168.0.160:3002/main/:path*',
       },
       
+      // 4-1. [브랜드 목록] (3002)
+      {
+        source: '/api/brands',
+        destination: 'http://192.168.0.160:3002/brands',
+      },
+      
+      // 4-2. [판매 순위] (3002)
+      {
+        source: '/api/ranking',
+        destination: 'http://192.168.0.160:3002/sales/rankings',
+      },
+      {
+        source: '/api/sales/:path*',
+        destination: 'http://192.168.0.160:3002/sales/:path*',
+      },
+      
       // 5. [찜하기 기능] (3002)
       {
         source: '/api/favorites/:path*',
         destination: 'http://192.168.0.160:3002/favorites/:path*',
+      },
+      
+      // 5-1. [최근 본 차량] (3002)
+      {
+        source: '/api/recent-views',
+        destination: 'http://192.168.0.160:3002/recent-views',
+      },
+      
+      // 5-2. [리뷰 분석] (3002)
+      {
+        source: '/api/review-analysis',
+        destination: 'http://192.168.0.160:3002/review-analysis',
       },
       
       // 5. [다른 서비스]

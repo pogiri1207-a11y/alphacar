@@ -23,8 +23,9 @@ export default function GlobalHeader() {
   };
 
   const [isMenuOpen, setIsMenuOpen] = useState(false);
-  const [userName, setUserName] = useState(() => readUserNameFromStorage());
+  const [userName, setUserName] = useState(null); // 초기값을 null로 설정 (서버와 클라이언트 일치)
   const [showLogoutModal, setShowLogoutModal] = useState(false);
+  const [isMounted, setIsMounted] = useState(false); // 클라이언트 마운트 여부
 
   const toggleMenu = () => setIsMenuOpen((prev) => !prev);
   const closeMenu = () => setIsMenuOpen(false);
@@ -41,6 +42,7 @@ export default function GlobalHeader() {
   };
 
   useEffect(() => {
+    setIsMounted(true);
     setIsMenuOpen(false);
     const nameFromStorage = readUserNameFromStorage();
     setUserName(nameFromStorage);
@@ -50,7 +52,8 @@ export default function GlobalHeader() {
   const HEADER_HEIGHT = 124; 
 
   const isLoggedIn = !!userName;
-  const shouldShowLogout = isLoggedIn && !pathname?.startsWith("/mypage/login");
+  // 클라이언트가 마운트된 후에만 로그아웃 버튼 표시 (Hydration 에러 방지)
+  const shouldShowLogout = isMounted && isLoggedIn && !pathname?.startsWith("/mypage/login");
   const isTopActive = (target) => pathname === target || pathname?.startsWith(target);
 
   return (
