@@ -8,19 +8,13 @@ COPY package*.json ./
 RUN npm install
 RUN npm install -g @nestjs/cli
 
+# 👇👇👇 [핵심 수정] 환경 변수 설정 👇👇👇
+# Node.js에게 node_modules가 있는 상위 폴더를 모듈 검색 경로에 추가하도록 지시합니다.
+ENV NODE_PATH=./node_modules/:../node_modules
+
 COPY . .
 
-# 1. 심볼릭 링크 생성 (파일 시스템 경로 해결)
-RUN ln -s /app/node_modules /app/${APP_NAME}/node_modules
-# 2. 전역 타입 설치 (Buffer, process 에러 해결)
-RUN npm install -g @types/node
-
-# 👇👇👇 [최종 수정] 모듈 검색 경로 문제 해결 👇👇👇
-# 3. 해당 앱의 tsconfig.json을 복사 (사실상 COPY . .에 포함됨)
-# 4. tsconfig.json 내부에 baseUrl 설정을 주입하여 모듈 검색 경로를 상위로 변경
-RUN sed -i 's/"rootDir": "src",/"rootDir": "src",\n    "baseUrl": "..",/g' ${APP_NAME}/tsconfig.json
-
-# 앱 폴더로 이동 후 빌드
+# 기존 cd 명령어 유지
 RUN cd ${APP_NAME} && nest build
 
 # 2. 실행 단계
@@ -31,7 +25,9 @@ WORKDIR /app
 COPY package*.json ./
 RUN npm install --production
 
-# 빌드 결과물 가져오기
+# 런타임 환경에도 NODE_PATH 설정 유지
+ENV NODE_PATH=./node_modules/:../node_modules
+
 COPY --from=builder /app/${APP_NAME}/dist ./dist
 
 EXPOSE 3000-4000
