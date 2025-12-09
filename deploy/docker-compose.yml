@@ -1,250 +1,265 @@
 version: '3.8'
+
 networks:
   backnet:
     driver: bridge
+
 services:
+  # [Traefik]
   traefik:
     image: traefik:3.6
     container_name: traefik
     restart: always
     environment:
-    - DOCKER_API_VERSION=1.44
+      - DOCKER_API_VERSION=${DOCKER_API_VERSION}
     command:
-    - --providers.docker=true
-    - --providers.docker.exposedbydefault=false
-    - --entrypoints.web.address=:9090
-    - --api.insecure=true
-    - --log.level=DEBUG
-    - --accesslog=true
+      - "--providers.docker=true"
+      - "--providers.docker.exposedbydefault=false"
+      - "--entrypoints.web.address=:9090"
+      - "--api.insecure=true"
+      - "--log.level=DEBUG"
+      - "--accesslog=true"
     ports:
-    - 9090:9090
-    - 10000:8080
+      - "9090:9090"
+      - "${TRAEFIK_DASHBOARD_PORT}:8080"
     volumes:
-    - /var/run/docker.sock:/var/run/docker.sock:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
     networks:
-    - backnet
+      - backnet
+
+  # [Nginx]
   nginx:
     image: 192.168.0.169/alphacar-project/alphacar-nginx:${IMAGE_TAG:-1.0.0}
     container_name: nginx
     restart: always
     ports:
-    - 80:80
-    - 443:443
-    - 8000:8000
+      - "80:80"
+      - "443:443"
+      - "8000:8000"
     volumes:
-    - ./nginx.conf:/etc/nginx/nginx.conf:ro
-    - /etc/nginx/ssl:/etc/nginx/ssl:ro
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+      - /etc/nginx/ssl:/etc/nginx/ssl:ro
     depends_on:
-    - frontend
-    - traefik
+      - frontend
+      - traefik
     networks:
-    - backnet
+      - backnet
+
+  # [Frontend]
   frontend:
     image: 192.168.0.169/alphacar-project/alphacar-frontend:${IMAGE_TAG:-1.0.0}
     container_name: frontend
     restart: always
     environment:
-    - API_URL=https://192.168.0.160.nip.io/api
-    - PORT=8000
-    - NODE_EXTRA_CA_CERTS=/etc/ssl/certs/selfsigned.crt
+      - API_URL=https://${NIP_DOMAIN}/api
+      - PORT=8000
+      - NEXT_PUBLIC_BASE_URL=https://${NIP_DOMAIN}
+      - NEXT_PUBLIC_DOMAIN=https://${NIP_DOMAIN}
+      - NODE_EXTRA_CA_CERTS=/etc/ssl/certs/selfsigned.crt
     expose:
-    - '8000'
+      - "8000"
     volumes:
-    - /etc/nginx/ssl/selfsigned.crt:/etc/ssl/certs/selfsigned.crt:ro
+      - /etc/nginx/ssl/selfsigned.crt:/etc/ssl/certs/selfsigned.crt:ro
     networks:
-    - backnet
+      - backnet
+
+  # [Main Backend]
   main-backend:
     image: 192.168.0.169/alphacar-project/alphacar-main:${IMAGE_TAG:-1.0.0}
     container_name: main_backend
     restart: always
     networks:
-    - backnet
+      - backnet
     environment:
-    - PORT=3002
-    - DATABASE_HOST=192.168.0.201
-    - DATABASE_PORT=27017
-    - DATABASE_USER=triple_user
-    - DATABASE_PASSWORD=triple_password
-    - DATABASE_NAME=triple_db
-    - REDIS_HOST=192.168.0.175
-    - 'REDIS_PORT=6379
-
+      - PORT=3002
       - SERVICE_NAME=main-backend
-
-      - OTEL_EXPORTER_OTLP_ENDPOINT=http://192.168.0.160:4318/v1/traces'
+      - OTEL_EXPORTER_OTLP_ENDPOINT=${OTEL_ENDPOINT}
+      # MongoDB
+      - DATABASE_HOST=${MONGO_HOST}
+      - DATABASE_PORT=${MONGO_PORT}
+      - DATABASE_USER=${MONGO_USER}
+      - DATABASE_PASSWORD=${MONGO_PASS}
+      - DATABASE_NAME=${MONGO_DB_NAME}
+      # Redis
+      - REDIS_HOST=${REDIS_HOST}
+      - REDIS_PORT=${REDIS_PORT}
     labels:
-    - traefik.enable=true
-    - traefik.http.services.main.loadbalancer.server.port=3002
-    - traefik.http.middlewares.strip-api.stripprefix.prefixes=/api
-    - traefik.http.routers.main.entrypoints=web
-    - traefik.http.routers.main.rule=PathPrefix(`/api/main`) || PathPrefix(`/api/history`)
-      || PathPrefix(`/api/recent-views`) || PathPrefix(`/api/sales`) || PathPrefix(`/api/brands`)
-      || PathPrefix(`/api/favorites`) || PathPrefix(`/api/log-view`) || PathPrefix(`/api/makers`)
-      || PathPrefix(`/api/models`) || PathPrefix(`/api/trims`) || PathPrefix(`/api/cars`)
-      || PathPrefix(`/api/review-analysis`)
-    - traefik.http.routers.main.middlewares=strip-api
-    - traefik.http.routers.main-detail.rule=PathPrefix(`/api/vehicles/detail`)
-    - traefik.http.routers.main-detail.entrypoints=web
-    - traefik.http.routers.main-detail.priority=100
-    - traefik.http.routers.main-detail.middlewares=strip-api
+      - "traefik.enable=true"
+      - "traefik.http.services.main.loadbalancer.server.port=3002"
+      - "traefik.http.middlewares.strip-api.stripprefix.prefixes=/api"
+      - "traefik.http.routers.main.entrypoints=web"
+      - "traefik.http.routers.main.rule=PathPrefix(`/api/main`) || PathPrefix(`/api/history`) || PathPrefix(`/api/recent-views`) || PathPrefix(`/api/sales`) || PathPrefix(`/api/brands`) || PathPrefix(`/api/favorites`) || PathPrefix(`/api/log-view`) || PathPrefix(`/api/makers`) || PathPrefix(`/api/models`) || PathPrefix(`/api/trims`) || PathPrefix(`/api/cars`) || PathPrefix(`/api/review-analysis`)"
+      - "traefik.http.routers.main.middlewares=strip-api"
+      - "traefik.http.routers.main-detail.rule=PathPrefix(`/api/vehicles/detail`)"
+      - "traefik.http.routers.main-detail.entrypoints=web"
+      - "traefik.http.routers.main-detail.priority=100"
+      - "traefik.http.routers.main-detail.middlewares=strip-api"
+
+  # [Quote Backend]
   quote-backend:
     image: 192.168.0.169/alphacar-project/alphacar-quote:${IMAGE_TAG:-1.0.0}
     container_name: quote_backend
     restart: always
     networks:
-    - backnet
+      - backnet
     environment:
-    - PORT=3003
-    - DATABASE_HOST=192.168.0.201
-    - DATABASE_PORT=27017
-    - DATABASE_USER=triple_user
-    - DATABASE_PASSWORD=triple_password
-    - 'DATABASE_NAME=triple_db
-
+      - PORT=3003
       - SERVICE_NAME=quote-backend
-
-      - OTEL_EXPORTER_OTLP_ENDPOINT=http://192.168.0.160:4318/v1/traces'
+      - OTEL_EXPORTER_OTLP_ENDPOINT=${OTEL_ENDPOINT}
+      # MongoDB
+      - DATABASE_HOST=${MONGO_HOST}
+      - DATABASE_PORT=${MONGO_PORT}
+      - DATABASE_USER=${MONGO_USER}
+      - DATABASE_PASSWORD=${MONGO_PASS}
+      - DATABASE_NAME=${MONGO_DB_NAME}
     labels:
-    - traefik.enable=true
-    - traefik.http.services.quote.loadbalancer.server.port=3003
-    - traefik.http.middlewares.strip-api-quote.stripprefix.prefixes=/api
-    - traefik.http.routers.quote.rule=PathPrefix(`/api/vehicles`) || PathPrefix(`/api/estimate`)
-      || PathPrefix(`/api/quote`)
-    - traefik.http.routers.quote.entrypoints=web
-    - traefik.http.routers.quote.priority=50
+      - "traefik.enable=true"
+      - "traefik.http.services.quote.loadbalancer.server.port=3003"
+      - "traefik.http.middlewares.strip-api-quote.stripprefix.prefixes=/api"
+      - "traefik.http.routers.quote.rule=PathPrefix(`/api/vehicles`) || PathPrefix(`/api/estimate`) || PathPrefix(`/api/quote`)"
+      - "traefik.http.routers.quote.entrypoints=web"
+      - "traefik.http.routers.quote.priority=50"
+
+  # [Search Backend]
   search-backend:
     image: 192.168.0.169/alphacar-project/alphacar-search:${IMAGE_TAG:-1.0.0}
     container_name: search_backend
     restart: always
     networks:
-    - backnet
+      - backnet
     environment:
-    - PORT=3007
-    - DATABASE_HOST=192.168.0.201
-    - DATABASE_PORT=27017
-    - DATABASE_USER=triple_user
-    - DATABASE_PASSWORD=triple_password
-    - 'DATABASE_NAME=triple_db
-
+      - PORT=3007
       - SERVICE_NAME=search-backend
-
-      - OTEL_EXPORTER_OTLP_ENDPOINT=http://192.168.0.160:4318/v1/traces'
+      - OTEL_EXPORTER_OTLP_ENDPOINT=${OTEL_ENDPOINT}
+      # MongoDB
+      - DATABASE_HOST=${MONGO_HOST}
+      - DATABASE_PORT=${MONGO_PORT}
+      - DATABASE_USER=${MONGO_USER}
+      - DATABASE_PASSWORD=${MONGO_PASS}
+      - DATABASE_NAME=${MONGO_DB_NAME}
     labels:
-    - traefik.enable=true
-    - traefik.http.services.search.loadbalancer.server.port=3007
-    - traefik.http.middlewares.strip-api-search.stripprefix.prefixes=/api
-    - traefik.http.routers.search.rule=PathPrefix(`/api/search`)
-    - traefik.http.routers.search.entrypoints=web
-    - traefik.http.routers.search.middlewares=strip-api-search
+      - "traefik.enable=true"
+      - "traefik.http.services.search.loadbalancer.server.port=3007"
+      - "traefik.http.middlewares.strip-api-search.stripprefix.prefixes=/api"
+      - "traefik.http.routers.search.rule=PathPrefix(`/api/search`)"
+      - "traefik.http.routers.search.entrypoints=web"
+      - "traefik.http.routers.search.middlewares=strip-api-search"
+
+  # [MyPage Backend]
   mypage-backend:
     image: 192.168.0.169/alphacar-project/alphacar-mypage:${IMAGE_TAG:-1.0.0}
     container_name: mypage_backend
     restart: always
     networks:
-    - backnet
+      - backnet
     environment:
-    - 'PORT=3006
-
+      - PORT=3006
       - SERVICE_NAME=mypage-backend
-
-      - OTEL_EXPORTER_OTLP_ENDPOINT=http://192.168.0.160:4318/v1/traces'
-    - DATABASE_HOST=192.168.0.201
-    - DATABASE_PORT=27017
-    - DATABASE_USER=triple_user
-    - DATABASE_PASSWORD=triple_password
-    - DATABASE_NAME=triple_db
-    - MARIADB_HOST=211.46.52.151
-    - MARIADB_PORT=15432
-    - MARIADB_USER=team1
-    - MARIADB_PASSWORD=Gkrtod1@
-    - MARIADB_DATABASE=team1
+      - OTEL_EXPORTER_OTLP_ENDPOINT=${OTEL_ENDPOINT}
+      # MongoDB
+      - DATABASE_HOST=${MONGO_HOST}
+      - DATABASE_PORT=${MONGO_PORT}
+      - DATABASE_USER=${MONGO_USER}
+      - DATABASE_PASSWORD=${MONGO_PASS}
+      - DATABASE_NAME=${MONGO_DB_NAME}
+      # MariaDB
+      - MARIADB_HOST=${MARIADB_HOST}
+      - MARIADB_PORT=${MARIADB_PORT}
+      - MARIADB_USER=${MARIADB_USER}
+      - MARIADB_PASSWORD=${MARIADB_PASS}
+      - MARIADB_DATABASE=${MARIADB_DB_NAME}
     labels:
-    - traefik.enable=true
-    - traefik.http.services.mypage.loadbalancer.server.port=3006
-    - traefik.http.middlewares.strip-api-mypage.stripprefix.prefixes=/api
-    - traefik.http.routers.mypage.rule=PathPrefix(`/api/mypage`) || PathPrefix(`/auth`)
-    - traefik.http.routers.mypage.entrypoints=web
-    - traefik.http.routers.mypage.middlewares=strip-api-mypage
+      - "traefik.enable=true"
+      - "traefik.http.services.mypage.loadbalancer.server.port=3006"
+      - "traefik.http.middlewares.strip-api-mypage.stripprefix.prefixes=/api"
+      - "traefik.http.routers.mypage.rule=PathPrefix(`/api/mypage`) || PathPrefix(`/auth`)"
+      - "traefik.http.routers.mypage.entrypoints=web"
+      - "traefik.http.routers.mypage.middlewares=strip-api-mypage"
+
+  # [Community Backend]
   community-backend:
     image: 192.168.0.169/alphacar-project/alphacar-community:${IMAGE_TAG:-1.0.0}
     container_name: community_backend
     restart: always
     networks:
-    - backnet
+      - backnet
     environment:
-    - PORT=3005
-    - MARIADB_TYPE=mariadb
-    - MARIADB_HOST=211.46.52.151
-    - MARIADB_PORT=15432
-    - MARIADB_USERNAME=team1
-    - MARIADB_PASSWORD=Gkrtod1@
-    - 'MARIADB_DATABASE=team1
-
+      - PORT=3005
       - SERVICE_NAME=community-backend
-
-      - OTEL_EXPORTER_OTLP_ENDPOINT=http://192.168.0.160:4318/v1/traces'
+      - OTEL_EXPORTER_OTLP_ENDPOINT=${OTEL_ENDPOINT}
+      # MariaDB
+      - MARIADB_TYPE=mariadb
+      - MARIADB_HOST=${MARIADB_HOST}
+      - MARIADB_PORT=${MARIADB_PORT}
+      - MARIADB_USERNAME=${MARIADB_USER}
+      - MARIADB_PASSWORD=${MARIADB_PASS}
+      - MARIADB_DATABASE=${MARIADB_DB_NAME}
     labels:
-    - traefik.enable=true
-    - traefik.http.services.community.loadbalancer.server.port=3005
-    - traefik.http.middlewares.strip-api-comm.stripprefix.prefixes=/api
-    - traefik.http.routers.community.rule=PathPrefix(`/api/community`)
-    - traefik.http.routers.community.entrypoints=web
-    - traefik.http.routers.community.middlewares=strip-api-comm
+      - "traefik.enable=true"
+      - "traefik.http.services.community.loadbalancer.server.port=3005"
+      - "traefik.http.middlewares.strip-api-comm.stripprefix.prefixes=/api"
+      - "traefik.http.routers.community.rule=PathPrefix(`/api/community`)"
+      - "traefik.http.routers.community.entrypoints=web"
+      - "traefik.http.routers.community.middlewares=strip-api-comm"
+
+  # [AI Chat Backend]
   aichat-backend:
     image: 192.168.0.169/alphacar-project/alphacar-aichat:${IMAGE_TAG:-1.0.0}
     container_name: aichat_backend
     restart: always
     networks:
-    - backnet
+      - backnet
     environment:
-    - PORT=4000
-    - DATABASE_HOST=192.168.0.201
-    - DATABASE_PORT=27017
-    - DATABASE_USER=proj
-    - DATABASE_PASSWORD=pass123
-    - 'DATABASE_NAME=triple_db
-
+      - PORT=4000
       - SERVICE_NAME=aichat-backend
-
-      - OTEL_EXPORTER_OTLP_ENDPOINT=http://192.168.0.160:4318/v1/traces'
-    - AWS_REGION=us-east-1
-    - AWS_ACCESS_KEY_ID=AKIAVR45JBJOYYJBPZ5M
-    - AWS_SECRET_ACCESS_KEY=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
-    - BEDROCK_GUARDRAIL_ID=nfdfeln14bg7
-    - BEDROCK_GUARDRAIL_VERSION=DRAFT
-    - BEDROCK_EMBEDDING_MODEL_ID=amazon.titan-embed-text-v2:0
-    - BEDROCK_LLM_MODEL_ID=meta.llama3-3-70b-instruct-v1:0
+      - OTEL_EXPORTER_OTLP_ENDPOINT=${OTEL_ENDPOINT}
+      # MongoDB (계정 다름 주의!)
+      - DATABASE_HOST=${MONGO_HOST}
+      - DATABASE_PORT=${MONGO_PORT}
+      - DATABASE_USER=${MONGO_USER_AICHAT}  # proj
+      - DATABASE_PASSWORD=${MONGO_PASS_AICHAT} # pass123
+      - DATABASE_NAME=${MONGO_DB_NAME}
+      # AWS Bedrock
+      - AWS_REGION=${AWS_REGION}
+      - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
+      - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
+      - BEDROCK_GUARDRAIL_ID=${BEDROCK_GUARDRAIL_ID}
+      - BEDROCK_GUARDRAIL_VERSION=${BEDROCK_GUARDRAIL_VERSION}
+      - BEDROCK_EMBEDDING_MODEL_ID=${BEDROCK_EMBEDDING_MODEL_ID}
+      - BEDROCK_LLM_MODEL_ID=${BEDROCK_LLM_MODEL_ID}
     volumes:
-    - ../backend/aichat/vector_store:/app/vector_store
+      - ../backend/aichat/vector_store:/app/vector_store
+      - ../backend/aichat/dist:/app/dist
     labels:
-    - traefik.enable=true
-    - traefik.http.services.aichat.loadbalancer.server.port=4000
-    - traefik.http.middlewares.ai-rewrite.replacepathregex.regex=^/api/chat/(.*)
-    - traefik.http.middlewares.ai-rewrite.replacepathregex.replacement=/chat/$$1
-    - traefik.http.routers.aichat.rule=PathPrefix(`/api/chat`)
-    - traefik.http.routers.aichat.entrypoints=web
-    - traefik.http.routers.aichat.middlewares=ai-rewrite
+      - "traefik.enable=true"
+      - "traefik.http.services.aichat.loadbalancer.server.port=4000"
+      - "traefik.http.middlewares.ai-rewrite.replacepathregex.regex=^/api/chat/(.*)"
+      - "traefik.http.middlewares.ai-rewrite.replacepathregex.replacement=/chat/$$1"
+      - "traefik.http.routers.aichat.rule=PathPrefix(`/api/chat`)"
+      - "traefik.http.routers.aichat.entrypoints=web"
+      - "traefik.http.routers.aichat.middlewares=ai-rewrite"
+
+  # [Drive Backend]
   drive-backend:
     image: 192.168.0.169/alphacar-project/alphacar-drive:${IMAGE_TAG:-1.0.0}
     container_name: drive_backend
     restart: always
     networks:
-    - backnet
+      - backnet
     environment:
-    - PORT=3008
-    - DATABASE_HOST=192.168.0.201
-    - DATABASE_PORT=27017
-    - DATABASE_USER=triple_user
-    - DATABASE_PASSWORD=triple_password
-    - 'DATABASE_NAME=triple_db
-
+      - PORT=3008
       - SERVICE_NAME=drive-backend
-
-      - OTEL_EXPORTER_OTLP_ENDPOINT=http://192.168.0.160:4318/v1/traces'
+      - OTEL_EXPORTER_OTLP_ENDPOINT=${OTEL_ENDPOINT}
+      # MongoDB
+      - DATABASE_HOST=${MONGO_HOST}
+      - DATABASE_PORT=${MONGO_PORT}
+      - DATABASE_USER=${MONGO_USER}
+      - DATABASE_PASSWORD=${MONGO_PASS}
+      - DATABASE_NAME=${MONGO_DB_NAME}
     labels:
-    - traefik.enable=true
-    - traefik.http.services.drive.loadbalancer.server.port=3008
-    - traefik.http.middlewares.strip-api-drive.stripprefix.prefixes=/api
-    - traefik.http.routers.drive.rule=PathPrefix(`/api/drive`)
-    - traefik.http.routers.drive.entrypoints=web
-    - traefik.http.routers.drive.middlewares=strip-api-drive
+      - "traefik.enable=true"
+      - "traefik.http.services.drive.loadbalancer.server.port=3008"
+      - "traefik.http.middlewares.strip-api-drive.stripprefix.prefixes=/api"
+      - "traefik.http.routers.drive.rule=PathPrefix(`/api/drive`)"
+      - "traefik.http.routers.drive.entrypoints=web"
+      - "traefik.http.routers.drive.middlewares=strip-api-drive"

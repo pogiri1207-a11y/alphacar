@@ -99,24 +99,33 @@ pipeline {
             }
         }
 
-        // 👇👇👇 [배포 단계] 서버에 접속해서 실행 👇👇👇
+        // 👇👇👇 [수정] Deploy to Server 단계: Secret File ALPHACAR 사용 👇👇👇
         stage('Deploy to Server') {
             steps {
-                // ssh-server: 젠킨스 credentials에 등록한 SSH 키 ID
-                // harbor-cred: 하버 로그인용 ID/PW
                 sshagent(credentials: ['ssh-server']) {
-                    withCredentials([usernamePassword(credentialsId: 'harbor-cred', usernameVariable: 'HB_USER', passwordVariable: 'HB_PASS')]) {
+                    // ALPHACAR: Secret File Credential ID (Kind: Secret file)
+                    withCredentials([file(credentialsId: 'ALPHACAR', variable: 'ENV_FILE_PATH'),
+                                     usernamePassword(credentialsId: 'harbor-cred', usernameVariable: 'HB_USER', passwordVariable: 'HB_PASS')]) {
                         script {
-                            def remoteIP = '192.168.0.160' // 배포할 서버 IP
-                            def remoteUser = 'kevin'       // 서버 사용자 ID
+                            def remoteIP = '192.168.0.160'
+                            def remoteUser = 'kevin'
+
+                            // 1. Secret File (ALPHACAR)의 내용을 Jenkins agent에서 읽어옴
+                            def envContent = readFile(ENV_FILE_PATH).trim()
                             
                             sh """
                             ssh -o StrictHostKeyChecking=no ${remoteUser}@${remoteIP} '
-                                cd ~/alphacar/deploy && \
-                                echo "${HB_PASS}" | docker login ${HARBOR_URL} -u ${HB_USER} --password-stdin && \
+                                # 2. 원격 서버(192.168.0.160)의 deploy 폴더에 .env 파일 생성 및 내용 주입
+                                echo "${envContent}" > ~/alphacar/deploy/.env && \\
+                                
+                                # 3. 하버 로그인 및 배포
+                                cd ~/alphacar/deploy && \\
+                                echo "${HB_PASS}" | docker login ${HARBOR_URL} -u ${HB_USER} --password-stdin && \\
                                 docker compose pull && \
-                                docker compose up -d --force-recreate && \
-                                docker image prune -f
+                                docker compose up -d --env-file ./.env --force-recreate && \
+                                
+                                # 4. 보안을 위해 .env 파일 즉시 삭제
+                                rm ~/alphacar/deploy/.env
                             '
                             """
                         }

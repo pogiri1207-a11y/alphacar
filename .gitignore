@@ -12,3 +12,18 @@ cicd/trivy/
 cicd/jenkins_home/
 cicd/sonar_data/
 cicd/sonar_extensions/
+
+# Git에 올라가면 안 되는 파일들
+.env
+*.env
+backend/.env
+backend/*/.env
+node_modules/
+dist/
+log/
+deploy/.env
+
+# 대용량 파일 무시 (ngrinder 경고 해결)
+ngringer/
+*.tar
+*.gz

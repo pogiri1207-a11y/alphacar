@@ -38,3 +38,4 @@ export class ReviewAnalysis {
 
 export const ReviewAnalysisSchema = SchemaFactory.createForClass(ReviewAnalysis);
 
+
