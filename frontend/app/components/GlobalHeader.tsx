@@ -19,11 +19,11 @@ interface MenuColumnProps {
 
 function MenuColumn({ title, items, titleHref }: MenuColumnProps) {
   const titleNode = titleHref ? (
-    <Link 
-      href={titleHref} 
-      style={{ 
-        textDecoration: "none", 
-        color: "#111", 
+    <Link
+      href={titleHref}
+      style={{
+        textDecoration: "none",
+        color: "#111",
         cursor: "pointer",
         transition: "color 0.2s ease",
       }}
@@ -45,12 +45,12 @@ function MenuColumn({ title, items, titleHref }: MenuColumnProps) {
       <div style={{ height: "2px", backgroundColor: "#bdbdbd", marginBottom: "12px" }} />
       <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
         {items.map((item) => (
-          <Link 
-            key={item.label} 
-            href={item.href} 
-            style={{ 
-              textDecoration: "none", 
-              color: "#444", 
+          <Link
+            key={item.label}
+            href={item.href}
+            style={{
+              textDecoration: "none",
+              color: "#444",
               fontSize: "14px",
               padding: "4px 8px",
               borderRadius: "6px",
@@ -80,7 +80,6 @@ function MenuColumn({ title, items, titleHref }: MenuColumnProps) {
 export default function GlobalHeader() {
   const pathname = usePathname();
 
-  // 🔹 localStorage에서 userName 읽어오는 공통 함수
   const readUserNameFromStorage = (): string | null => {
     if (typeof window === "undefined") return null;
     const raw = window.localStorage.getItem("alphacarUser");
@@ -119,17 +118,14 @@ export default function GlobalHeader() {
     setUserName(nameFromStorage);
   }, [pathname]);
 
-  // ✅ [수정 1] 헤더 전체 높이를 124px로 늘림 (본문 가림 방지)
   const HEADER_HEIGHT = 124;
 
   const isLoggedIn = !!userName;
-  // 클라이언트가 마운트된 후에만 로그아웃 버튼 표시 (Hydration 에러 방지)
   const shouldShowLogout = isMounted && isLoggedIn && !pathname?.startsWith("/mypage/login");
   const isTopActive = (target: string) => pathname === target || pathname?.startsWith(target);
 
   return (
     <>
-      {/* 고정 헤더 */}
       <div
         style={{
           position: "fixed",
@@ -141,7 +137,6 @@ export default function GlobalHeader() {
           boxShadow: "0 2px 4px rgba(0,0,0,0.03)",
         }}
       >
-        {/* 1. 상단: 로그인 / 고객센터 라인 */}
         <div
           style={{
             borderBottom: "1px solid #f2f2f2",
@@ -176,7 +171,6 @@ export default function GlobalHeader() {
           </div>
         </div>
 
-        {/* 2. 메인 GNB 라인 */}
         <div
           style={{
             borderBottom: "1px solid #ddd",
@@ -193,12 +187,11 @@ export default function GlobalHeader() {
               justifyContent: "space-between",
             }}
           >
-            {/* 왼쪽: 로고 + 메뉴 */}
             <div style={{ display: "flex", alignItems: "center", gap: "28px" }}>
               <Link href="/" style={{ textDecoration: "none", color: "#111827" }}>
-                <span style={{ 
-                  fontSize: "28px", 
-                  fontWeight: 600, 
+                <span style={{
+                  fontSize: "28px",
+                  fontWeight: 600,
                   letterSpacing: "0.3px",
                   color: "#1e293b",
                   textShadow: "0 1px 3px rgba(0,0,0,0.08)",
@@ -256,8 +249,8 @@ export default function GlobalHeader() {
                     whiteSpace: "nowrap",
                   }}
                 >
-                  <Link 
-                    href="/quote" 
+                  <Link
+                    href="/quote"
                     className={"gnb-link" + (isTopActive("/quote") ? " gnb-link-active" : "")}
                     style={{
                       padding: "6px 12px",
@@ -280,8 +273,8 @@ export default function GlobalHeader() {
                   >
                     견적 비교
                   </Link>
-                  <Link 
-                    href="/news" 
+                  <Link
+                    href="/news"
                     className={"gnb-link" + (isTopActive("/news") ? " gnb-link-active" : "")}
                     style={{
                       padding: "6px 12px",
@@ -304,8 +297,8 @@ export default function GlobalHeader() {
                   >
                     소식
                   </Link>
-                  <Link 
-                    href="/community" 
+                  <Link
+                    href="/community"
                     className={"gnb-link" + (isTopActive("/community") ? " gnb-link-active" : "")}
                     style={{
                       padding: "6px 12px",
@@ -332,7 +325,6 @@ export default function GlobalHeader() {
               </div>
             </div>
 
-            {/* 오른쪽: 전체메뉴 버튼 */}
             <button
               type="button"
               onClick={toggleMenu}
@@ -355,7 +347,6 @@ export default function GlobalHeader() {
         </div>
       </div>
 
-      {/* 전체메뉴 펼침 영역 */}
       {isMenuOpen && (
         <div onClick={closeMenu} style={{ position: "fixed", inset: 0, top: 0, left: 0, zIndex: 90 }}>
           <div
@@ -394,7 +385,7 @@ export default function GlobalHeader() {
                   titleHref="/news"
                   items={[
                     { label: "핫이슈", href: "/news/hot" },
-                    { label: "내차와의 데이터", href: "/news/data" },
+                    { label: "내차와의 데이트", href: "/news/data" },  // ✅ 수정 적용
                     { label: "시승기", href: "/news/review" },
                     { label: "시승신청하기", href: "/news/test-drive" },
                   ]}
@@ -435,10 +426,10 @@ export default function GlobalHeader() {
                   ]}
                 />
                 <div>
-                  <Link 
-                    href="/customer-center" 
-                    style={{ 
-                      textDecoration: "none", 
+                  <Link
+                    href="/customer-center"
+                    style={{
+                      textDecoration: "none",
                       color: "#111",
                       display: "block",
                       padding: "8px",
@@ -464,7 +455,6 @@ export default function GlobalHeader() {
         </div>
       )}
 
-      {/* fixed 헤더 여백 확보 */}
       <div style={{ height: HEADER_HEIGHT }} />
 
       <SimpleModal
