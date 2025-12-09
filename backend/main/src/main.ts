@@ -1,5 +1,5 @@
 // src/main.ts
-import { setupTracing } from '../../tracing';
+import { setupTracing } from './tracing';
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 

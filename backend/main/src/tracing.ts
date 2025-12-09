@@ -21,7 +21,7 @@ export function setupTracing(serviceName: string) {
 
   // SDK 시작
   sdk.start();
-  
+
   console.log(`[OpenTelemetry] '${serviceName}' tracing initialized.`);
 
   // 프로세스 종료 시 처리
@@ -32,3 +32,4 @@ export function setupTracing(serviceName: string) {
       .finally(() => process.exit(0));
   });
 }
+
