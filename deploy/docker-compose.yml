@@ -29,7 +29,7 @@ services:
 
   # [Nginx]
   nginx:
-    image: 192.168.0.169/alphacar-project/alphacar-nginx:${IMAGE_TAG:-1.0.0}
+    image: 192.168.0.169/alphacar-project/alphacar-nginx:${FRONTEND_VERSION:-1.0.0}
     container_name: nginx
     restart: always
     ports:
@@ -47,7 +47,7 @@ services:
 
   # [Frontend]
   frontend:
-    image: 192.168.0.169/alphacar-project/alphacar-frontend:${IMAGE_TAG:-1.0.0}
+    image: 192.168.0.169/alphacar-project/alphacar-frontend:${FRONTEND_VERSION:-1.0.0}
     container_name: frontend
     restart: always
     environment:
@@ -65,7 +65,7 @@ services:
 
   # [Main Backend]
   main-backend:
-    image: 192.168.0.169/alphacar-project/alphacar-main:${IMAGE_TAG:-1.0.0}
+    image: 192.168.0.169/alphacar-project/alphacar-main:${BACKEND_VERSION:-1.0.0}
     container_name: main_backend
     restart: always
     networks:
@@ -106,7 +106,7 @@ services:
 
   # [Quote Backend]
   quote-backend:
-    image: 192.168.0.169/alphacar-project/alphacar-quote:${IMAGE_TAG:-1.0.0}
+    image: 192.168.0.169/alphacar-project/alphacar-quote:${BACKEND_VERSION:-1.0.0}
     container_name: quote_backend
     restart: always
     networks:
@@ -140,7 +140,7 @@ services:
 
   # [Search Backend]
   search-backend:
-    image: 192.168.0.169/alphacar-project/alphacar-search:${IMAGE_TAG:-1.0.0}
+    image: 192.168.0.169/alphacar-project/alphacar-search:${BACKEND_VERSION:-1.0.0} 
     container_name: search_backend
     restart: always
     networks:
@@ -174,7 +174,7 @@ services:
 
   # [MyPage Backend]
   mypage-backend:
-    image: 192.168.0.169/alphacar-project/alphacar-mypage:${IMAGE_TAG:-1.0.0}
+    image: 192.168.0.169/alphacar-project/alphacar-mypage:${BACKEND_VERSION:-1.0.0}
     container_name: mypage_backend
     restart: always
     networks:
@@ -214,7 +214,7 @@ services:
 
   # [Community Backend]
   community-backend:
-    image: 192.168.0.169/alphacar-project/alphacar-community:${IMAGE_TAG:-1.0.0}
+    image: 192.168.0.169/alphacar-project/alphacar-community:${BACKEND_VERSION:-1.0.0}
     container_name: community_backend
     restart: always
     networks:
@@ -240,7 +240,7 @@ services:
 
   # [AI Chat Backend]
   aichat-backend:
-    image: 192.168.0.169/alphacar-project/alphacar-aichat:${IMAGE_TAG:-1.0.0}
+    image: 192.168.0.169/alphacar-project/alphacar-aichat:${BACKEND_VERSION:-1.0.0}
     container_name: aichat_backend
     restart: always
     networks:
@@ -285,7 +285,7 @@ services:
 
   # [Drive Backend]
   drive-backend:
-    image: 192.168.0.169/alphacar-project/alphacar-drive:${IMAGE_TAG:-1.0.0}
+    image: 192.168.0.169/alphacar-project/alphacar-drive:${BACKEND_VERSION:-1.0.0}
     container_name: drive_backend
     restart: always
     networks:

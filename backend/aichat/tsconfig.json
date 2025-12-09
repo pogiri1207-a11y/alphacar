@@ -1,25 +1,31 @@
 {
   "compilerOptions": {
-    "module": "nodenext",
-    "moduleResolution": "nodenext",
-    "resolvePackageJsonExports": true,
-    "esModuleInterop": true,
-    "isolatedModules": true,
+    "module": "commonjs", 
+    "moduleResolution": "node",
     "declaration": true,
     "removeComments": true,
     "emitDecoratorMetadata": true,
     "experimentalDecorators": true,
     "allowSyntheticDefaultImports": true,
-    "target": "ES2023",
+    "target": "ES2021",
     "sourceMap": true,
     "outDir": "./dist",
     "baseUrl": "./",
     "incremental": true,
     "skipLibCheck": true,
     "strictNullChecks": true,
-    "forceConsistentCasingInFileNames": true,
     "noImplicitAny": false,
     "strictBindCallApply": false,
-    "noFallthroughCasesInSwitch": false
-  }
+    "forceConsistentCasingInFileNames": false,
+    "noFallthroughCasesInSwitch": false,
+    
+    // ✅ [핵심 수정 1] 루트 디렉토리를 상위(backend 폴더)로 확장
+    "rootDir": "../.."
+  },
+  // ✅ [핵심 수정 2] 컴파일 대상을 '내 소스'와 '공통 tracing 파일'로만 한정
+  // 이걸 안 하면 다른 서비스 폴더(community 등)까지 전부 컴파일하려고 시도합니다.
+  "include": [
+    "src/**/*",
+    "../../tracing.ts"
+  ]
 }
