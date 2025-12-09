@@ -1,12 +1,12 @@
+import { setupTracing } from './tracing';
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 import { ValidationPipe } from '@nestjs/common';
-import { initializeTracing } from './tracing';
 
 async function bootstrap() {
   // OpenTelemetry 초기화 (가장 먼저 실행)
   const serviceName = process.env.SERVICE_NAME || 'quote-backend';
-  initializeTracing(serviceName);
+  setupTracing(serviceName);
 
   // 디버그 로그 레벨을 명시적으로 활성화합니다.
   const app = await NestFactory.create(AppModule, { 

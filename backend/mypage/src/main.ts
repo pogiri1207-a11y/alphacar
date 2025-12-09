@@ -1,11 +1,11 @@
+import { setupTracing } from './tracing';
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
-import { initializeTracing } from './tracing';
 
 async function bootstrap() {
   // OpenTelemetry 초기화 (가장 먼저 실행)
   const serviceName = process.env.SERVICE_NAME || 'mypage-backend';
-  initializeTracing(serviceName);
+  setupTracing(serviceName);
 
   const app = await NestFactory.create(AppModule);
 
