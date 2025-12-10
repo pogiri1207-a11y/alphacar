@@ -15,7 +15,9 @@
     "@opentelemetry/sdk-node": "^0.208.0",
     "@opentelemetry/semantic-conventions": "^1.38.0",
     "axios": "^1.13.2",
-    "next": "16.0.5",
+    "next": "16.0.7",
+     "cross-spawn": "7.0.5",  
+  "glob": "11.0.0",         
     "react": "19.2.0",
     "react-dom": "19.2.0"
   },
@@ -25,7 +27,7 @@
     "@types/react": "19.2.7",
     "babel-plugin-react-compiler": "1.0.0",
     "eslint": "^9",
-    "eslint-config-next": "16.0.5",
+    "eslint-config-next": "16.0.7",
     "tailwindcss": "^4"
   }
 }

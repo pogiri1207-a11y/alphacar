@@ -24,14 +24,12 @@ export class ChatService implements OnModuleInit {
     const secretAccessKey = this.configService.get<string>('AWS_SECRET_ACCESS_KEY') ?? '';
     const region = this.configService.get<string>('AWS_REGION') ?? 'us-east-1';
 
-    // 1. 임베딩 모델 (LangChain)
     this.embeddings = new BedrockEmbeddings({
       region: region,
       credentials: { accessKeyId, secretAccessKey },
       model: 'amazon.titan-embed-text-v2:0',
     });
 
-    // 2. Bedrock SDK Client (Converse API용)
     this.bedrockClient = new BedrockRuntimeClient({
       region: region,
       credentials: { accessKeyId, secretAccessKey },
@@ -61,7 +59,6 @@ export class ChatService implements OnModuleInit {
     return { message: 'Knowledge added.', source };
   }
 
-  // [기존 유지] AI 텍스트 기반 차종 분류
   async classifyCar(modelName: string): Promise<string> {
     const prompt = `Classify '${modelName}' into ONE: [Sedan, SUV, Truck, Van, Light Car, Sports Car, Hatchback]. No explanation.`;
     const input: ConverseCommandInput = {
@@ -77,34 +74,48 @@ export class ChatService implements OnModuleInit {
   }
 
   // =================================================================================
-  // [신규 기능] 이미지 채팅 (Llama 3.2 Vision + RAG Pipeline + CoT Reasoning)
+  // [이미지 채팅]
   // =================================================================================
 
   async chatWithImage(imageBuffer: Buffer, mimeType: string = 'image/jpeg') {
     console.log("📸 Image received, analyzing with Llama 3.2 Vision...");
 
     try {
-      // 1. Vision 모델로 차종 식별
-      const identifiedCarName = await this.identifyCarWithLlama(imageBuffer, mimeType);
+      // 1. 차종 식별
+      let identifiedCarName = await this.identifyCarWithLlama(imageBuffer, mimeType);
+      
+      // ★ [수정] 식별 결과 전처리 (앞뒤 공백 제거 및 유효성 검사)
+      if (identifiedCarName) {
+          identifiedCarName = identifiedCarName.trim();
+      }
 
       console.log(`📸 Identified Car Result: "${identifiedCarName}"`);
 
-      // ★ [수정] 방어 코드: 식별 실패 시 RAG 검색을 건너뛰고 에러 메시지 반환
-      if (!identifiedCarName || identifiedCarName === 'NOT_CAR' || identifiedCarName.trim() === '') {
+      // ★ [수정] 실패 조건 강화 (빈 문자열, null, undefined, NOT_CAR 모두 차단)
+      if (!identifiedCarName || identifiedCarName === 'NOT_CAR' || identifiedCarName.length < 2) {
         return {
-            response: "죄송합니다. 사진에서 자동차를 명확하게 식별하지 못했습니다. 차량이 잘 보이는 사진으로 다시 시도해 주세요.",
+            response: "죄송합니다. 사진에서 자동차를 명확하게 식별하지 못했습니다. 차량이 더 잘 보이는 사진으로 다시 시도해 주세요.",
             context_used: [],
             identified_car: null
         };
       }
 
-      // 2. 식별된 차종으로 벡터 스토어 검색 (RAG)
-      // identifiedCarName이 확실히 문자열일 때만 실행됨
+      // 2. 검색 (RAG)
       const results = await this.vectorStore.similaritySearch(identifiedCarName, 10);
+      
+      // ★ [추가] 검색 결과가 없을 경우 예외 처리
+      if (!results || results.length === 0) {
+          return {
+              response: `죄송합니다. 사진의 차량(${identifiedCarName})과 일치하는 정보를 데이터베이스에서 찾을 수 없습니다.`,
+              context_used: [],
+              identified_car: identifiedCarName
+          };
+      }
+
       const contextText = results.map(doc => doc.pageContent).join("\n");
       const sources = results.map((r) => r.metadata.source);
 
-      // 3. 검색된 정보(Context)를 기반으로 설명 생성 (링크 포함 기능 추가됨)
+      // 3. 설명 생성
       const description = await this.generateCarDescription(identifiedCarName, contextText);
 
       return {
@@ -123,7 +134,6 @@ export class ChatService implements OnModuleInit {
     }
   }
 
-  // [Helper] 식별된 정보로 설명 생성 (Llama 3.3 70B 사용) - 링크 로직 수정됨
   private async generateCarDescription(carName: string, context: string): Promise<string> {
       const prompt = `
 <|begin_of_text|><|start_header_id|>system<|end_header_id|>
@@ -151,7 +161,7 @@ Your goal is to explain this vehicle to the user based **ONLY** on the provided 
 
   [![${carName}](이미지URL_값)](/quote/personal/result?trimId=BaseTrimId_값&modelName=모델명_값)
 
-- **WARNING**: Do NOT output raw URLs. Only use the Markdown link format above. Replace '..._값' placeholders with actual values found in the context.
+- **WARNING**: Do NOT output raw URLs. Use the Markdown link format above. Replace '..._값' placeholders with actual values found in the context.
 
 [Context (Vector Store Data)]
 ${context}
@@ -177,7 +187,6 @@ ${context}
       }
   }
 
-  // [Helper] 이미지 식별 (Llama 3.2 90B Vision)
   private async identifyCarWithLlama(imageBuffer: Buffer, mimeType: string): Promise<string> {
     const modelId = 'us.meta.llama3-2-90b-instruct-v1:0';
 
@@ -191,12 +200,12 @@ Reasoning: [Reasoning in English]
 Final Answer: [Manufacturer ModelName in Korean]
 
 [EXAMPLES]
-User:
+User: [Image]
 Assistant:
 Reasoning: I see the KN logo and sliding doors. It is a minivan.
 Final Answer: 기아 카니발
 
-User:
+User: [Image]
 Assistant:
 Reasoning: This is a dog.
 Final Answer: NOT_CAR
@@ -234,28 +243,32 @@ Identify the car in this image.
       const fullText = response.output?.message?.content?.[0]?.text || '';
       console.log("🤖 Vision Thinking Process:", fullText);
 
-      // ★ [수정] 결과 파싱 로직 강화
-      const match = fullText.match(/Final Answer:\s*(.*)/i);
-      let identifiedName = 'NOT_CAR';
+      // ★ [수정] 파싱 로직 강화
+      // 1. Final Answer 정규식 시도
+      let match = fullText.match(/Final Answer:\s*(.+)/i);
+      let identifiedName = '';
 
       if (match && match[1]) {
           identifiedName = match[1].trim();
-      } else if (fullText.includes("NOT_CAR")) {
-          identifiedName = "NOT_CAR";
       } else {
-          // Final Answer 형식이 깨졌을 때 마지막 줄을 가져오기 시도
+          // 2. 정규식 실패 시, NOT_CAR 키워드 확인
+          if (fullText.includes("NOT_CAR")) {
+              return 'NOT_CAR';
+          }
+          // 3. 그것도 아니면 마지막 줄을 정답으로 간주 (최후의 수단)
           const lines = fullText.trim().split('\n');
           const lastLine = lines[lines.length - 1].trim();
+          // 마지막 줄이 너무 길면(설명문이면) 무시
           if (lastLine.length > 0 && lastLine.length < 50) {
              identifiedName = lastLine;
           }
       }
 
-      // 특수문자 제거
-      identifiedName = identifiedName.replace(/\.$/, '').trim();
+      // 특수문자 제거 및 정리
+      identifiedName = identifiedName.replace(/[.,;!"']/g, '').trim();
       
-      if (!identifiedName) return 'NOT_CAR';
-      if (identifiedName.includes('NOT_CAR')) return 'NOT_CAR';
+      // 최종 검증
+      if (!identifiedName || identifiedName.toUpperCase() === 'NOT_CAR') return 'NOT_CAR';
       
       return identifiedName;
 
@@ -268,7 +281,6 @@ Identify the car in this image.
   // =================================================================================
 
   async chat(userMessage: string) {
-    // 1. RAG 검색
     let results = await this.vectorStore.similaritySearch(userMessage, 20);
 
     const context = results.map((r) => r.pageContent).join('\n\n');
@@ -280,7 +292,6 @@ Identify the car in this image.
     const isComparisonQuery = comparisonKeywords.some(keyword => userMessage.includes(keyword)) &&
                               (userMessage.includes('쏘나타') && userMessage.includes('K5'));
 
-    // 2. 시스템 프롬프트 (링크 로직 수정됨)
     let systemPrompt = `
     You are the AI Automotive Specialist for 'AlphaCar'.
 
@@ -316,7 +327,6 @@ Identify the car in this image.
     ${context}
     `;
 
-    // 3. Bedrock Converse API
     const guardrailId = this.configService.get<string>('BEDROCK_GUARDRAIL_ID');
     const guardrailVersion = this.configService.get<string>('BEDROCK_GUARDRAIL_VERSION') || 'DRAFT';
 
