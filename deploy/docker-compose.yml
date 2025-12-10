@@ -74,6 +74,8 @@ services:
       - PORT=3002
       - SERVICE_NAME=main-backend
       - OTEL_EXPORTER_OTLP_ENDPOINT=${OTEL_ENDPOINT}
+      - OTEL_LOG_LEVEL=debug
+      - OTEL_DIAG_LEVEL=debug
       # MongoDB
       - DATABASE_HOST=${MONGO_HOST}
       - DATABASE_PORT=${MONGO_PORT}
@@ -249,6 +251,8 @@ services:
       - PORT=4000
       - SERVICE_NAME=aichat-backend
       - OTEL_EXPORTER_OTLP_ENDPOINT=${OTEL_ENDPOINT}
+      - OTEL_LOG_LEVEL=debug
+      - OTEL_DIAG_LEVEL=debug
       # MongoDB (계정 다름 주의!)
       - DATABASE_HOST=${MONGO_HOST}
       - DATABASE_PORT=${MONGO_PORT}

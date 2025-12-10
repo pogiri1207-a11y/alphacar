@@ -83,32 +83,44 @@ export class ChatService implements OnModuleInit {
   async chatWithImage(imageBuffer: Buffer, mimeType: string = 'image/jpeg') {
     console.log("📸 Image received, analyzing with Llama 3.2 Vision...");
 
-    // 1. Vision 모델로 차종 식별
-    const identifiedCarName = await this.identifyCarWithLlama(imageBuffer, mimeType);
+    try {
+      // 1. Vision 모델로 차종 식별
+      const identifiedCarName = await this.identifyCarWithLlama(imageBuffer, mimeType);
 
-    if (identifiedCarName === 'NOT_CAR') {
+      console.log(`📸 Identified Car Result: "${identifiedCarName}"`);
+
+      // ★ [수정] 방어 코드: 식별 실패 시 RAG 검색을 건너뛰고 에러 메시지 반환
+      if (!identifiedCarName || identifiedCarName === 'NOT_CAR' || identifiedCarName.trim() === '') {
         return {
             response: "죄송합니다. 사진에서 자동차를 명확하게 식별하지 못했습니다. 차량이 잘 보이는 사진으로 다시 시도해 주세요.",
             context_used: [],
             identified_car: null
         };
+      }
+
+      // 2. 식별된 차종으로 벡터 스토어 검색 (RAG)
+      // identifiedCarName이 확실히 문자열일 때만 실행됨
+      const results = await this.vectorStore.similaritySearch(identifiedCarName, 10);
+      const contextText = results.map(doc => doc.pageContent).join("\n");
+      const sources = results.map((r) => r.metadata.source);
+
+      // 3. 검색된 정보(Context)를 기반으로 설명 생성 (링크 포함 기능 추가됨)
+      const description = await this.generateCarDescription(identifiedCarName, contextText);
+
+      return {
+          response: description,
+          context_used: sources,
+          identified_car: identifiedCarName
+      };
+
+    } catch (e: any) {
+      console.error("🔥 chatWithImage Error:", e.message);
+      return {
+        response: "이미지 처리 중 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.",
+        context_used: [],
+        identified_car: null
+      };
     }
-
-    console.log(`📸 Identified Car: ${identifiedCarName}`);
-
-    // 2. 식별된 차종으로 벡터 스토어 검색 (RAG)
-    const results = await this.vectorStore.similaritySearch(identifiedCarName, 10);
-    const contextText = results.map(doc => doc.pageContent).join("\n");
-    const sources = results.map((r) => r.metadata.source);
-
-    // 3. 검색된 정보(Context)를 기반으로 설명 생성 (링크 포함 기능 추가됨)
-    const description = await this.generateCarDescription(identifiedCarName, contextText);
-
-    return {
-        response: description,
-        context_used: sources,
-        identified_car: identifiedCarName
-    };
   }
 
   // [Helper] 식별된 정보로 설명 생성 (Llama 3.3 70B 사용) - 링크 로직 수정됨
@@ -139,7 +151,7 @@ Your goal is to explain this vehicle to the user based **ONLY** on the provided 
 
   [![${carName}](이미지URL_값)](/quote/personal/result?trimId=BaseTrimId_값&modelName=모델명_값)
 
-- **WARNING**: Do NOT output raw URLs. Only use the Markdown link format above. Ensure 'modelName' is included.
+- **WARNING**: Do NOT output raw URLs. Only use the Markdown link format above. Replace '..._값' placeholders with actual values found in the context.
 
 [Context (Vector Store Data)]
 ${context}
@@ -193,9 +205,9 @@ Identify the car in this image.
 <|eot_id|><|start_header_id|>assistant<|end_header_id|>
 `;
 
-    const format = mimeType === 'image/png' ? 'png' :
-                   mimeType === 'image/webp' ? 'webp' :
-                   mimeType === 'image/gif' ? 'gif' : 'jpeg';
+    const format = mimeType.includes('png') ? 'png' :
+                   mimeType.includes('webp') ? 'webp' :
+                   mimeType.includes('gif') ? 'gif' : 'jpeg';
 
     const input: ConverseCommandInput = {
       modelId: modelId,
@@ -222,18 +234,29 @@ Identify the car in this image.
       const fullText = response.output?.message?.content?.[0]?.text || '';
       console.log("🤖 Vision Thinking Process:", fullText);
 
+      // ★ [수정] 결과 파싱 로직 강화
       const match = fullText.match(/Final Answer:\s*(.*)/i);
       let identifiedName = 'NOT_CAR';
+
       if (match && match[1]) {
           identifiedName = match[1].trim();
       } else if (fullText.includes("NOT_CAR")) {
           identifiedName = "NOT_CAR";
       } else {
-          identifiedName = fullText.replace(/Reasoning:[\s\S]*?Final Answer:/i, "").trim();
+          // Final Answer 형식이 깨졌을 때 마지막 줄을 가져오기 시도
+          const lines = fullText.trim().split('\n');
+          const lastLine = lines[lines.length - 1].trim();
+          if (lastLine.length > 0 && lastLine.length < 50) {
+             identifiedName = lastLine;
+          }
       }
 
+      // 특수문자 제거
       identifiedName = identifiedName.replace(/\.$/, '').trim();
+      
+      if (!identifiedName) return 'NOT_CAR';
       if (identifiedName.includes('NOT_CAR')) return 'NOT_CAR';
+      
       return identifiedName;
 
     } catch (e) {
@@ -257,7 +280,7 @@ Identify the car in this image.
     const isComparisonQuery = comparisonKeywords.some(keyword => userMessage.includes(keyword)) &&
                               (userMessage.includes('쏘나타') && userMessage.includes('K5'));
 
-    // 2. 시스템 프롬프트 (요청대로 링크 포맷 수정됨)
+    // 2. 시스템 프롬프트 (링크 로직 수정됨)
     let systemPrompt = `
     You are the AI Automotive Specialist for 'AlphaCar'.
 
@@ -270,13 +293,13 @@ Identify the car in this image.
     - If the context contains 'ImageURL' and 'BaseTrimId' for the suggested car, you **MUST** display the image wrapped in a link.
     - **Purpose**: Clicking the image should take the user to the quote page.
     - **STRICT Format**:
-      [![Car Name](ImageURL)](/quote/personal/result?trimId=BaseTrimId_값&modelName=모델명_값)
+      [![Car Name](ImageURL_값)](/quote/personal/result?trimId=BaseTrimId_값&modelName=모델명_값)
 
     - **Instruction**:
       1. Extract 'ImageURL' from the context.
       2. Extract 'BaseTrimId' from the [시스템 데이터] section.
       3. Extract '모델명' (Model Name) from the [차량 정보] section.
-      4. Combine them into the Markdown link above. Do NOT use placeholder IDs.
+      4. Combine them into the Markdown link above. Replace '..._값' placeholders with the actual values found in the context.
 
     [RESPONSE STRATEGY]
     - Act like a friendly, professional car dealer.
