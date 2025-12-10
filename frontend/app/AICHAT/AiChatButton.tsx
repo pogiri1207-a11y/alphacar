@@ -233,9 +233,9 @@ export default function AiChatButton() {
       let data: { response: string };
       if (selectedFile) {
         const formData = new FormData();
-        formData.append("image", selectedFile);
+        formData.append("file", selectedFile);
         
-        const res = await fetch("/api/chat/ask", {
+        const res = await fetch("/api/chat/image", {
           method: "POST",
           body: formData,
         });

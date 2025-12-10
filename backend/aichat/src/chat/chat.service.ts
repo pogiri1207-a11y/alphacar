@@ -126,6 +126,8 @@ export class ChatService implements OnModuleInit {
 
     } catch (e: any) {
       console.error("🔥 chatWithImage Error:", e.message);
+      console.error("🔥 Error Stack:", e.stack);
+      console.error("🔥 Error Details:", JSON.stringify(e, Object.getOwnPropertyNames(e)));
       return {
         response: "이미지 처리 중 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.",
         context_used: [],
@@ -272,8 +274,12 @@ Identify the car in this image.
       
       return identifiedName;
 
-    } catch (e) {
-      console.error("🔥 Bedrock Vision Error:", e);
+    } catch (e: any) {
+      console.error("🔥 Bedrock Vision Error:", e.message);
+      console.error("🔥 Bedrock Vision Error Stack:", e.stack);
+      if (e.name === 'ValidationException' || e.name === 'AccessDeniedException') {
+        console.error("🔥 AWS Bedrock API Error - Check credentials and model access");
+      }
       return 'NOT_CAR';
     }
   }
