@@ -3,7 +3,8 @@
 
 import SimpleModal from "../../components/SimpleModal"; // ✅ 경로 중요!
 import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation"; // ✅ useSearchParams 추가
+import Cookies from "js-cookie"; // ✅ js-cookie 추가
 
 // 눈 아이콘 (비밀번호 보기)
 function EyeIcon() {
@@ -91,11 +92,18 @@ const clearAuthStorage = () => {
     localStorage.removeItem("alphacarToken");
     localStorage.removeItem("alphacarUser");
     localStorage.removeItem("alphacarUserNickname");
+    // 로그아웃이나 초기화 시 쿠키도 삭제하는 것이 안전합니다.
+    Cookies.remove("accessToken"); 
   }
 };
 
 export default function MyPageLogin() {
   const router = useRouter();
+  const searchParams = useSearchParams(); // ✅ 쿼리 파라미터 가져오기
+
+  // ✅ 로그인 후 이동할 주소 확인 (없으면 기본값 '/mypage')
+  // 기존 로직이 /mypage로 이동하는 것이었으므로 기본값을 유지합니다.
+  const callbackUrl = searchParams.get("callbackUrl") || "/mypage";
 
   const [passwordVisible, setPasswordVisible] = useState(false);
   const [email, setEmail] = useState("");
@@ -130,7 +138,7 @@ export default function MyPageLogin() {
       const name = nickname || socialId;
       setWelcomeName(name);
       setShowWelcomeModal(true);
-      // 여기서는 더 이상 alert / router.replace 안 함
+      // 여기서는 더 이상 alert / router.replace 안 함 (모달 확인 시 이동)
     }
   }, []);
 
@@ -181,7 +189,15 @@ export default function MyPageLogin() {
       if (data.access_token && data.user) {
         clearAuthStorage();
 
+        // 1. 기존 로직: 로컬스토리지 저장
         localStorage.setItem("alphacarToken", data.access_token);
+
+        // 2. ✅ [추가됨] 쿠키에 토큰 저장 (미들웨어 및 서버 컴포넌트용)
+        Cookies.set("accessToken", data.access_token, { 
+          expires: 1, 
+          secure: true, 
+          sameSite: "Strict" 
+        });
 
         if (data.user.socialId) {
           saveSocialIdToLocalStorage(data.user.socialId);
@@ -200,7 +216,7 @@ export default function MyPageLogin() {
           data.user.nickname || data.user.email || "ALPHACAR 회원";
         setWelcomeName(name);
         setShowWelcomeModal(true);
-        // 여기서 바로 router.push("/mypage") 하지 않음
+        // 여기서 바로 router.push 하지 않고 모달의 onConfirm에서 처리
       } else {
         alert(
           "로그인 응답 형식이 예상과 다릅니다. 백엔드 응답을 확인해주세요.",
@@ -291,7 +307,8 @@ export default function MyPageLogin() {
             }}
           >
             <input
-              type={passwordVisible ? "text" : "password"}
+              type="password" // ⚠️ 원본 코드에 visible logic이 있었으나 type이 고정되어 있었을 수 있음. 여기서는 토글 로직 적용
+              // (원본 코드에서 type={passwordVisible ? "text" : "password"} 로 되어 있었으므로 그대로 유지)
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               style={{
@@ -300,6 +317,8 @@ export default function MyPageLogin() {
                 outline: "none",
                 fontSize: "14px",
               }}
+              // ⬇️ 원본의 토글 로직 적용
+              {...{ type: passwordVisible ? "text" : "password" }}
             />
             <button
               type="button"
@@ -481,7 +500,8 @@ export default function MyPageLogin() {
         confirmText="확인"
         onConfirm={() => {
           setShowWelcomeModal(false);
-          router.push("/mypage");
+          // ✅ [변경됨] 원래 가려던 주소(callbackUrl)로 이동 (기본값: /mypage)
+          router.replace(callbackUrl);
         }}
         onCancel={() => setShowWelcomeModal(false)}
       />

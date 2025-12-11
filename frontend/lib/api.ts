@@ -1,173 +1,159 @@
-// lib/api.ts
+// frontend/lib/api.ts
+import axios from 'axios';
+import Cookies from 'js-cookie';
 
-// [공통] JWT/SocialID 토큰 가져오기
-function getAuthToken() {
-    const token = typeof window !== 'undefined' ? localStorage.getItem('alphacarToken') : null;
-    const socialId = typeof window !== 'undefined' ? localStorage.getItem('user_social_id') : null;
-    return token || socialId;
-}
+// ----------------------------------------------------------------------
+// 1. Axios 인스턴스 생성 및 인터셉터 설정 (핵심 ⭐)
+// ----------------------------------------------------------------------
+const api = axios.create({
+  // Nginx Proxy를 통해 Traefik Gateway로 연결되는 주소
+  baseURL: 'https://192.168.0.160.nip.io:8000/api', 
+  headers: {
+    'Content-Type': 'application/json',
+  },
+});
 
-// --------------------
-// 1. 메인 페이지 (Main Service -> Port 3002)
-// --------------------
+// [요청 인터셉터] 모든 요청 출발 직전에 실행됨
+api.interceptors.request.use(
+  (config) => {
+    // 1. 쿠키에서 accessToken 가져오기 (가장 권장)
+    let token = Cookies.get('accessToken');
+
+    // 2. 쿠키에 없으면 로컬스토리지 확인 (이전 호환성 및 클라이언트용)
+    if (!token && typeof window !== 'undefined') {
+      token = localStorage.getItem('alphacarToken') || localStorage.getItem('user_social_id');
+    }
+
+    // 3. 토큰이 있으면 헤더에 심어주기
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
+      // console.log(`[Axios Interceptor] Token injected: ${token.substring(0, 10)}...`);
+    }
+    return config;
+  },
+  (error) => {
+    return Promise.reject(error);
+  }
+);
+
+// [응답 인터셉터] (선택사항: 401 에러 시 로그인 페이지로 튕기기 등)
+// api.interceptors.response.use(...)
+
+export default api;
+
+
+// ----------------------------------------------------------------------
+// 2. API 함수들 (Axios 사용으로 간결해짐)
+// ----------------------------------------------------------------------
+
+// 1. 메인 페이지
 export type MainData = {
   welcomeMessage: string;
-  searchBar?: { isShow: boolean; placeholder: string; };
+  searchBar?: { isShow: boolean; placeholder: string };
   banners: { id: number; text: string; color: string }[];
   shortcuts: string[];
   carList?: any[];
   cars?: any[];
-  [key: string]: any; // 그 외 다른 속성이 들어와도 에러 나지 않게 허용
+  [key: string]: any;
 };
 
 export async function fetchMainData(brand?: string): Promise<MainData> {
-  // /api/main -> 3002번 포트의 /main 으로 연결됨
-  // 브랜드 필터링 지원
-  const url = brand && brand !== '전체' && brand !== 'all' 
-    ? `/api/main?brand=${encodeURIComponent(brand)}`
-    : `/api/main`;
-  const res = await fetch(url, { method: "GET" });
-  if (!res.ok) throw new Error("메인 데이터 불러오기 실패");
-  return res.json();
+  const params = brand && brand !== '전체' && brand !== 'all' ? { brand } : {};
+  const { data } = await api.get<MainData>('/main', { params });
+  return data;
 }
 
-// --------------------
-// 2. 견적 페이지 (Quote Service -> Port 3003)
-// --------------------
-export type QuoteInitData = { message: string; models: string[]; trims: string[]; };
-export type QuoteSaveResponse = { success: boolean; message: string; id: string; };
+// 2. 견적 페이지
+export type QuoteInitData = { message: string; models: string[]; trims: string[] };
+export type QuoteSaveResponse = { success: boolean; message: string; id: string };
 
 export async function fetchQuoteInitData(): Promise<QuoteInitData> {
-  const res = await fetch(`/api/quote`, { method: "GET" });
-  if (!res.ok) throw new Error("견적 초기 데이터 불러오기 실패");
-  return res.json();
+  const { data } = await api.get<QuoteInitData>('/quote');
+  return data;
 }
 
-export async function saveQuote(data: any): Promise<QuoteSaveResponse> {
-  const res = await fetch(`/api/quote/save`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(data),
-  });
-  if (!res.ok) throw new Error("견적 저장 실패");
-  return res.json();
+export async function saveQuote(payload: any): Promise<QuoteSaveResponse> {
+  const { data } = await api.post<QuoteSaveResponse>('/quote/save', payload);
+  return data;
 }
 
-// --------------------
-// 3. 드라이브 코스 (Drive Service -> Port 설정 필요)
-// --------------------
-// ※ 주의: 보내주신 next.config.mjs에 'news'(3004)는 있지만 'drive'가 없어서
-// 일단 3002번(Main)이나 별도 포트로 연결되도록 설정이 필요합니다.
-// 여기서는 /api/drive 로 요청하도록 작성했습니다.
+// 3. 드라이브 코스
 export type DriveCoursesData = {
   message: string;
-  courses: { id: number; title: string; distance: string; time: string; }[];
+  courses: { id: number; title: string; distance: string; time: string }[];
 };
-export type DriveCourseDetail = { id: string; title: string; description: string; mapUrl: string; };
+export type DriveCourseDetail = { id: string; title: string; description: string; mapUrl: string };
 
 export async function fetchDriveCourses(): Promise<DriveCoursesData> {
-  const res = await fetch(`/api/news`, { method: "GET" });
-  if (!res.ok) throw new Error("드라이브 코스 목록 불러오기 실패");
-  return res.json();
+  // 기존 코드에 /api/news 로 되어있어 유지 (추후 /drive 로 변경 필요 시 수정)
+  const { data } = await api.get<DriveCoursesData>('/news'); 
+  return data;
 }
 
 export async function fetchDriveCourseDetail(id: number | string): Promise<DriveCourseDetail> {
-  const res = await fetch(`/api/drive/${id}`, { method: "GET" });
-  if (!res.ok) throw new Error("드라이브 코스 상세 불러오기 실패");
-  return res.json();
+  const { data } = await api.get<DriveCourseDetail>(`/drive/${id}`);
+  return data;
 }
 
-// --------------------
-// 4. 커뮤니티 (Community Service -> Port 3005)
-// --------------------
-export type CommunityPost = { id: number; category: string; title: string; content: string; author: string; userId?: string | number; date: string; views: number; };
-export type CommunityListResponse = { message: string; posts: CommunityPost[]; };
-export type CommunityWriteResponse = { success: boolean; message: string; };
+// 4. 커뮤니티
+export type CommunityPost = {
+  id: number;
+  category: string;
+  title: string;
+  content: string;
+  author: string;
+  userId?: string | number;
+  date: string;
+  views: number;
+};
+export type CommunityListResponse = { message: string; posts: CommunityPost[] };
+export type CommunityWriteResponse = { success: boolean; message: string };
 
 export async function fetchCommunityPosts(): Promise<CommunityListResponse> {
-  const res = await fetch(`/api/community`, {
-    method: "GET",
-    cache: "no-store"
-  });
-  if (!res.ok) throw new Error("커뮤니티 목록 불러오기 실패");
-  return res.json();
+  const { data } = await api.get<CommunityListResponse>('/community');
+  return data;
 }
 
-export async function createCommunityPost(data: Partial<CommunityPost>): Promise<CommunityWriteResponse> {
-  const res = await fetch(`/api/community/write`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(data),
-  });
-  if (!res.ok) throw new Error("커뮤니티 글 등록 실패");
-  return res.json();
+export async function createCommunityPost(postData: Partial<CommunityPost>): Promise<CommunityWriteResponse> {
+  const { data } = await api.post<CommunityWriteResponse>('/community/write', postData);
+  return data;
 }
 
-// --------------------
-// 5. 마이페이지 (Mypage Service -> Port 3006)
-// --------------------
-export type MypageInfoResponse = { isLoggedIn: boolean; message: string; user: any | null; };
-export type NonMemberQuoteCheckResponse = { success: boolean; status?: string; model?: string; message?: string; };
+// 5. 마이페이지
+export type MypageInfoResponse = { isLoggedIn: boolean; message: string; user: any | null };
+export type NonMemberQuoteCheckResponse = { success: boolean; status?: string; model?: string; message?: string };
 
 export async function fetchMypageInfo(): Promise<MypageInfoResponse> {
-  const token = getAuthToken();
-  const headers: HeadersInit = {};
-  if (token) {
-      headers['Authorization'] = `Bearer ${token}`;
-      console.log(`[FE LOG] Token sent: ${token}`);
-  }
-
-  const res = await fetch(`/api/mypage`, {
-    method: "GET",
-    headers: headers,
-  });
-
-  if (!res.ok) throw new Error("마이페이지 정보 불러오기 실패");
-  return res.json();
+  // 인터셉터가 알아서 토큰을 넣어주므로 별도 헤더 설정 불필요! 👍
+  const { data } = await api.get<MypageInfoResponse>('/mypage');
+  return data;
 }
 
 export async function checkNonMemberQuote(quoteId: string): Promise<NonMemberQuoteCheckResponse> {
-  const res = await fetch(`/api/mypage/check`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ quoteId }),
-  });
-  if (!res.ok) throw new Error("비회원 견적 조회 실패");
-  return res.json();
+  const { data } = await api.post<NonMemberQuoteCheckResponse>('/mypage/check', { quoteId });
+  return data;
 }
 
-// --------------------
-// 6. 검색 (Search Service -> Port 3007)
-// --------------------
-export type SearchCarTrim = { id: number; name: string; price: number; };
-export type SearchCar = { id: number; name: string; image: string; priceRange: string; trims: SearchCarTrim[]; };
-export type SearchResult = { success: boolean; keyword: string; result: { cars: SearchCar[]; community: any[]; }; };
+// 6. 검색
+export type SearchCarTrim = { id: number; name: string; price: number };
+export type SearchCar = { id: number; name: string; image: string; priceRange: string; trims: SearchCarTrim[] };
+export type SearchResult = { success: boolean; keyword: string; result: { cars: SearchCar[]; community: any[] } };
 
 export async function fetchSearch(keyword: string): Promise<SearchResult> {
-  const res = await fetch(`/api/search?keyword=${encodeURIComponent(keyword)}`, { method: "GET" });
-  if (!res.ok) throw new Error("검색 API 호출 실패");
-  return res.json();
+  const { data } = await api.get<SearchResult>('/search', { params: { keyword } });
+  return data;
 }
 
-// --------------------
-// 7. 브랜드 목록 (Main Service -> Port 3002)
-// --------------------
-export type Brand = {
-  name: string;
-  logo_url?: string;
-};
+// 7. 브랜드 목록
+export type Brand = { name: string; logo_url?: string };
+export type BrandWithLogo = { name: string; logo_url: string };
 
 export async function fetchBrands(): Promise<Brand[]> {
-  const res = await fetch(`/api/brands`, { method: "GET" });
-  if (!res.ok) throw new Error("브랜드 목록 불러오기 실패");
-  return res.json();
+  const { data } = await api.get<Brand[]>('/brands');
+  return data;
 }
 
-// ✅ [추가] 브랜드 목록 (로고 포함) 가져오기
-export type BrandWithLogo = { name: string; logo_url: string; };
 export async function fetchBrandsWithLogo(): Promise<BrandWithLogo[]> {
-  // /api/brands 엔드포인트 사용 (makers-with-logo도 지원하지만 brands가 더 안정적)
-  const res = await fetch(`/api/brands`, { method: "GET" });
-  if (!res.ok) throw new Error("브랜드 목록 불러오기 실패");
-  return res.json();
+  const { data } = await api.get<BrandWithLogo[]>('/brands');
+  return data;
 }

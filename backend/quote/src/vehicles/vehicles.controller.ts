@@ -1,4 +1,5 @@
-import { Controller, Get, Param, Query, Logger, HttpStatus, NotFoundException } from '@nestjs/common';
+import { Controller, Get, Param, Query, Logger, HttpStatus, NotFoundException, UseGuards } from '@nestjs/common';
+import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { AppService } from '../app.service';
 import { VehiclesService } from './vehicles.service'; 
 
@@ -84,6 +85,7 @@ export class VehiclesController {
   }
 
   // 7. 비교 견적 상세
+  @UseGuards(JwtAuthGuard)
   @Get('compare-details')
   async getCompareDetails(
     @Query('trimId') trimId: string,

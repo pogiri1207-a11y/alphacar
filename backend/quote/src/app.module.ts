@@ -1,5 +1,7 @@
 // backend/quote/src/app.module.ts (전체 코드)
 import { Module, Global, forwardRef } from '@nestjs/common';
+import { AuthModule } from './auth/auth.module';
+
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { MongooseModule } from '@nestjs/mongoose';
 import { AppController } from './app.controller';
@@ -44,6 +46,7 @@ import { VehiclesModule } from './vehicles/vehicles.module';
         ]),
 
         // 4. 모듈 등록
+	AuthModule,
         EstimateModule,
         VehiclesModule,
         forwardRef(() => VehiclesModule),

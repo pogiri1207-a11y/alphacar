@@ -12,14 +12,14 @@ RUN apk add --no-cache libc6-compat
 # 1-2. 패키지 파일 복사
 # (빌드 컨텍스트가 backend/ 이므로 해당 경로 기준)
 COPY package.json package-lock.json ./
-COPY ${APP_NAME}/package.json ${APP_NAME}/package-lock.json ${APP_NAME}/
+COPY ${APP_NAME}/package.json ${APP_NAME}/
 
 # 1-3. 의존성 설치 (CI 모드: 빠르고 정확함)
 # 이때는 빌드를 위해 devDependencies(NestCLI 등)가 모두 설치됩니다.
 RUN npm install -g @nestjs/cli
 RUN npm install --legacy-peer-deps
 # 앱별 의존성도 설치 (aichat/package.json의 의존성)
-RUN cd ${APP_NAME} && npm install --legacy-peer-deps
+
 
 # 1-4. 소스 코드 복사 및 빌드
 COPY . .

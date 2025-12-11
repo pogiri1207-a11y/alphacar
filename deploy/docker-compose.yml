@@ -148,6 +148,7 @@ services:
       - DATABASE_USER=${MONGO_USER}
       - DATABASE_PASSWORD=${MONGO_PASS}
       - DATABASE_NAME=${MONGO_DB_NAME}
+      - JWT_SECRET=${JWT_SECRET}
     extra_hosts:
       - "mongodb_primary:${MONGO_HOST}"
       - "mongodb_secondary_1:${MONGO_HOST}"
