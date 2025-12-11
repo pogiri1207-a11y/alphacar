@@ -87,7 +87,8 @@ pipeline {
             steps {
                 script {
                     // 1. Backend MSA (7개)
-                    def backendServices = ['aichat', 'community', 'drive', 'mypage', 'quote', 'search', 'main']
+                    //def backendServices = ['aichat', 'community', 'drive', 'mypage', 'quote', 'search', 'main']
+                    def backendServices = ['community', 'drive', 'mypage', 'quote', 'search', 'main']
                     backendServices.each { service ->
                         sh "docker build --build-arg APP_NAME=${service} -f backend/Dockerfile -t ${HARBOR_URL}/${HARBOR_PROJECT}/alphacar-${service}:${BACKEND_VERSION} backend/"
                     }
@@ -108,7 +109,8 @@ pipeline {
                     def SKIP_CACHE_FILES = "--skip-files 'root/.npm/_cacache/*'"
 
                     // 1. 백엔드 스캔
-                    def backendServices = ['aichat', 'community', 'drive', 'mypage', 'quote', 'search', 'main']
+                    //def backendServices = ['aichat', 'community', 'drive', 'mypage', 'quote', 'search', 'main']
+                    def backendServices = ['community', 'drive', 'mypage', 'quote', 'search', 'main']
                     backendServices.each { service ->
                         echo "🛡️ Scanning Backend Service: ${service}"
                         // SKIP_CACHE_FILES 변수 추가 적용
