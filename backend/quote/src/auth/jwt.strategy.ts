@@ -9,7 +9,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
       ignoreExpiration: false,
       // ⚠️ docker-compose.yml에 정의된 환경변수와 반드시 일치해야 함
-      secretOrKey: process.env.JWT_SECRET, 
+      secretOrKey: process.env.JWT_SECRET || 'default-secret-key', 
     });
   }
 
