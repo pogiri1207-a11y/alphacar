@@ -59,7 +59,7 @@ pipeline {
             steps {
                 script {
                     // Backend 서비스 목록 (원하는 서비스 추가/제거)
-                    def backendServices = ['aichat', 'community', 'drive', 'mypage', 'quote', 'search', 'main']
+                    def backendServices = ['community', 'drive', 'mypage', 'quote', 'search', 'main']
                     backendServices.each { service ->
                         sh "docker build --build-arg APP_NAME=${service} -f backend/Dockerfile -t ${HARBOR_URL}/${HARBOR_PROJECT}/alphacar-${service}:${BACKEND_VERSION} backend/"
                     }
@@ -78,7 +78,7 @@ pipeline {
                 script {
                     def SKIP_CACHE_FILES = "--skip-files 'root/.npm/_cacache/*'"
 
-                    def backendServices = ['aichat', 'community', 'drive', 'mypage', 'quote', 'search', 'main']
+                    def backendServices = ['community', 'drive', 'mypage', 'quote', 'search', 'main']
                     backendServices.each { service ->
                         echo "🛡️ Scanning Backend Service: ${service}"
                         sh "docker run --rm -v /var/run/docker.sock:/var/run/docker.sock aquasec/trivy:latest image --exit-code 0 --severity HIGH,CRITICAL ${SKIP_CACHE_FILES} ${HARBOR_URL}/${HARBOR_PROJECT}/alphacar-${service}:${BACKEND_VERSION}"
