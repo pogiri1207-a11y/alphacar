@@ -17,7 +17,7 @@ spec:
       - name: harbor-registry-secret
       containers:
       - name: mypage-backend
-        image: 192.168.0.169/alphacar-project/alphacar-mypage:1.0.0
+        image: 192.168.0.169/kdh/alphacar-mypage:1.0.1
         ports:
         - containerPort: 3006
           name: http
@@ -26,6 +26,8 @@ spec:
           value: "3006"
         - name: SERVICE_NAME
           value: "mypage-backend"
+        - name: BASE_URL
+          value: "https://192.168.56.200"
         - name: OTEL_EXPORTER_OTLP_ENDPOINT
           valueFrom:
             configMapKeyRef:
