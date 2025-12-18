@@ -6,15 +6,38 @@ node_modules/
 # 2. 빌드 결과물 제외
 dist/
 */dist/
+**/dist/
 
 # 3. 깃 및 로그 파일 제외
 .git/
 .gitignore
 *.log
 npm-debug.log*
+**/.git/
 
 # 4. 도커 관련 파일 제외
 Dockerfile
 */Dockerfile
+**/Dockerfile
 docker-compose*.yml
 .dockerignore
+
+# 5. 테스트 및 개발 파일 제외
+**/test/
+**/tests/
+**/*.test.ts
+**/*.spec.ts
+**/.env.local
+**/.env.development
+
+# 6. IDE 및 에디터 파일 제외
+**/.vscode/
+**/.idea/
+**/*.swp
+**/*.swo
+**/.DS_Store
+
+# 7. 문서 파일 제외 (빌드에 불필요)
+**/README.md
+**/docs/
+**/*.md
