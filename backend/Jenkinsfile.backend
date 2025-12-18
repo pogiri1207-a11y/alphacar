@@ -198,9 +198,17 @@ pipeline {
                                                 backend/
                                         }
                                         
-                                        # 빌드된 이미지 확인
-                                        docker images | grep ${service} | head -3
-                                        echo "✅ Image built: ${imageBase}:${env.FULL_VERSION}"
+                                        # 빌드된 이미지 확인 및 검증
+                                        echo "🔍 Verifying built image..."
+                                        if docker images --format '{{.Repository}}:{{.Tag}}' | grep -q "^${imageBase}:${env.FULL_VERSION}\$"; then
+                                            echo "✅ Image ${imageBase}:${env.FULL_VERSION} built successfully"
+                                            docker images | grep ${service} | head -3
+                                        else
+                                            echo "❌ Image ${imageBase}:${env.FULL_VERSION} not found after build!"
+                                            echo "📋 Available images:"
+                                            docker images | grep ${service} || echo "No images found"
+                                            exit 1
+                                        fi
                                     """
                                 }
                             }
@@ -210,25 +218,62 @@ pipeline {
                         parallel buildSteps
                         echo "✅ All images built successfully"
                         
+                        // 빌드 검증: 모든 이미지가 존재하는지 확인
+                        echo "🔍 Verifying all built images..."
+                        serviceList.each { service ->
+                            def imageBase = "192.168.56.200:30002/${HARBOR_PROJECT}/${service}"
+                            sh """
+                                if ! docker images --format '{{.Repository}}:{{.Tag}}' | grep -q "^${imageBase}:${env.FULL_VERSION}\$"; then
+                                    echo "❌ ERROR: Image ${imageBase}:${env.FULL_VERSION} not found!"
+                                    exit 1
+                                fi
+                            """
+                        }
+                        echo "✅ All images verified"
+                        
                         // 병렬 푸시 (타임아웃 설정)
                         def pushSteps = [:]
                         serviceList.each { service ->
                             pushSteps["Push-${service}"] = {
                                 timeout(time: 10, unit: 'MINUTES') {
                                     echo "📤 Pushing [${service}]..."
+                                    def imageBase = "192.168.56.200:30002/${HARBOR_PROJECT}/${service}"
+                                    
+                                    // 이미지 존재 여부 확인
+                                    sh """
+                                        echo "🔍 Checking if image exists..."
+                                        if docker images --format '{{.Repository}}:{{.Tag}}' | grep -q "^${imageBase}:${env.FULL_VERSION}\$"; then
+                                            echo "✅ Image ${imageBase}:${env.FULL_VERSION} found"
+                                        else
+                                            echo "❌ Image ${imageBase}:${env.FULL_VERSION} not found!"
+                                            echo "📋 Available images:"
+                                            docker images | grep ${service} || echo "No images found for ${service}"
+                                            exit 1
+                                        fi
+                                    """
+                                    
                                     retry(3) {
                                         sh """
-                                            docker push 192.168.56.200:30002/${HARBOR_PROJECT}/${service}:${env.FULL_VERSION} || {
+                                            # 버전 태그 푸시
+                                            echo "📤 Pushing ${imageBase}:${env.FULL_VERSION}..."
+                                            docker push ${imageBase}:${env.FULL_VERSION} || {
                                                 echo "⚠️ Push failed, retrying..."
                                                 sleep 2
-                                                docker push 192.168.56.200:30002/${HARBOR_PROJECT}/${service}:${env.FULL_VERSION}
+                                                docker push ${imageBase}:${env.FULL_VERSION} || exit 1
                                             }
-                                            docker push 192.168.56.200:30002/${HARBOR_PROJECT}/${service}:latest || {
+                                            
+                                            # latest 태그 푸시
+                                            echo "📤 Pushing ${imageBase}:latest..."
+                                            docker push ${imageBase}:latest || {
                                                 echo "⚠️ Push latest failed, retrying..."
                                                 sleep 2
-                                                docker push 192.168.56.200:30002/${HARBOR_PROJECT}/${service}:latest
+                                                docker push ${imageBase}:latest || exit 1
                                             }
-                                            docker rmi 192.168.56.200:30002/${HARBOR_PROJECT}/${service}:${env.FULL_VERSION} || true
+                                            
+                                            echo "✅ Successfully pushed ${service} to Harbor"
+                                            
+                                            # 이미지 삭제 (선택적)
+                                            docker rmi ${imageBase}:${env.FULL_VERSION} || true
                                         """
                                     }
                                 }
