@@ -168,10 +168,14 @@ pipeline {
                         passwordVariable: 'HARBOR_PASS'
                     )]) {
                         sh """
-                            echo "\${HARBOR_PASS}" | docker login http://192.168.56.200:30002 -u \${HARBOR_USER} --password-stdin
+                            # Harbor 로그인 시도 (HTTP - insecure registry 설정 필요)
+                            echo "\${HARBOR_PASS}" | docker login 192.168.56.200:30002 -u \${HARBOR_USER} --password-stdin || {
+                                echo "⚠️ Login failed, trying alternative method..."
+                                echo "\${HARBOR_PASS}" | docker login --username \${HARBOR_USER} --password-stdin 192.168.56.200:30002
+                            }
                             docker push ${imageTag}
                             docker push ${imageTagLatest}
-                            docker logout http://192.168.56.200:30002
+                            docker logout 192.168.56.200:30002
                         """
                     }
 
