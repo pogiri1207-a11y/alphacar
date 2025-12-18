@@ -151,9 +151,9 @@ pipeline {
             steps {
                 script {
                         withCredentials([usernamePassword(credentialsId: "${CREDENTIAL_ID}", usernameVariable: 'HUB_USER', passwordVariable: 'HUB_PASS')]) {
-                        // Harbor 로그인 (HTTP 사용)
+                        // Harbor 로그인 (HTTP 사용 - 명시적으로 http:// 포함)
                         sh """
-                            echo "\${HUB_PASS}" | docker login ${HARBOR_URL} -u \${HUB_USER} --password-stdin
+                            echo "\${HUB_PASS}" | docker login http://192.168.56.200:30002 -u \${HUB_USER} --password-stdin
                         """
 
                         def serviceList = env.SERVICES.split(',')

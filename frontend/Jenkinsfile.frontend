@@ -168,10 +168,10 @@ pipeline {
                         passwordVariable: 'HARBOR_PASS'
                     )]) {
                         sh """
-                            echo "\${HARBOR_PASS}" | docker login 192.168.56.200:30002 -u \${HARBOR_USER} --password-stdin
+                            echo "\${HARBOR_PASS}" | docker login http://192.168.56.200:30002 -u \${HARBOR_USER} --password-stdin
                             docker push ${imageTag}
                             docker push ${imageTagLatest}
-                            docker logout 192.168.56.200:30002
+                            docker logout http://192.168.56.200:30002
                         """
                     }
 
