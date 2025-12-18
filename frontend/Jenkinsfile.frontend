@@ -31,9 +31,13 @@ pipeline {
             steps {
                 script {
                     def scannerHome = tool 'sonar-scanner'
-                    withSonarQubeEnv("${SONARQUBE}") {
+                    // credentialsId는 젠킨스에 등록한 소나큐브 토큰의 ID를 넣어야 합니다. (예: sonarqube-token)
+                    withSonarQubeEnv(installationName: "${SONARQUBE}") {
                         // 프론트엔드 폴더만 정밀 스캔
-                        sh "${scannerHome}/bin/sonar-scanner -Dsonar.projectKey=alphacar-frontend -Dsonar.sources=frontend"
+                        sh "${scannerHome}/bin/sonar-scanner \
+                        -Dsonar.projectKey=alphacar-frontend \
+                        -Dsonar.sources=frontend \
+                        -Dsonar.host.url=http://192.168.56.200:32001"
                     }
                 }
             }
