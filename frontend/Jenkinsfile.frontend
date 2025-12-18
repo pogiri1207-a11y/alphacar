@@ -168,11 +168,8 @@ pipeline {
                         passwordVariable: 'HARBOR_PASS'
                     )]) {
                         sh """
-                            # Harbor 로그인 시도 (HTTP - insecure registry 설정 필요)
-                            echo "\${HARBOR_PASS}" | docker login 192.168.56.200:30002 -u \${HARBOR_USER} --password-stdin || {
-                                echo "⚠️ Login failed, trying alternative method..."
-                                echo "\${HARBOR_PASS}" | docker login --username \${HARBOR_USER} --password-stdin 192.168.56.200:30002
-                            }
+                            # Harbor 로그인 (프로토콜 없이 시도 - Docker daemon이 insecure registry로 인식)
+                            echo "\${HARBOR_PASS}" | docker login 192.168.56.200:30002 -u \${HARBOR_USER} --password-stdin
                             docker push ${imageTag}
                             docker push ${imageTagLatest}
                             docker logout 192.168.56.200:30002

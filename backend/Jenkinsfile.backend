@@ -151,21 +151,11 @@ pipeline {
             steps {
                 script {
                         withCredentials([usernamePassword(credentialsId: "${CREDENTIAL_ID}", usernameVariable: 'HUB_USER', passwordVariable: 'HUB_PASS')]) {
-                        // Harbor 로그인 (HTTP 사용 - insecure registry 설정 필요)
-                        // 호스트 노드의 /etc/docker/daemon.json에 "insecure-registries": ["192.168.56.200:30002"] 추가 필요
+                        // Harbor 로그인 (HTTP 사용)
+                        // 주의: 호스트 노드의 Docker daemon이 insecure registry를 인식하려면 재시작 필요
                         sh """
-                            # Docker daemon 설정 확인 및 적용
-                            DOCKER_DAEMON="/etc/docker/daemon.json"
-                            if [ ! -f "\$DOCKER_DAEMON" ] || ! grep -q "192.168.56.200:30002" "\$DOCKER_DAEMON" 2>/dev/null; then
-                                echo "⚠️ Warning: Docker daemon insecure registry may not be configured"
-                                echo "Please add to /etc/docker/daemon.json on host node:"
-                                echo '{"insecure-registries": ["192.168.56.200:30002"]}'
-                            fi
-                            # Harbor 로그인 시도 (HTTP)
-                            echo "\${HUB_PASS}" | docker login 192.168.56.200:30002 -u \${HUB_USER} --password-stdin || {
-                                echo "⚠️ Login failed, trying without protocol..."
-                                echo "\${HUB_PASS}" | docker login --username \${HUB_USER} --password-stdin 192.168.56.200:30002
-                            }
+                            # Harbor 로그인 (프로토콜 없이 시도 - Docker daemon이 insecure registry로 인식)
+                            echo "\${HUB_PASS}" | docker login 192.168.56.200:30002 -u \${HUB_USER} --password-stdin
                         """
 
                         def serviceList = env.SERVICES.split(',')
