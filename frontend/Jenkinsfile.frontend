@@ -2,19 +2,19 @@ pipeline {
     agent any
 
     environment {
-        // 성공했던 하버 설정
+        // 하버 및 소나큐브 기본 설정
         HARBOR_URL = '192.168.56.200:30002'
         HARBOR_PROJECT = 'alphacar'
         IMAGE_NAME = 'frontend'
         CREDENTIAL_ID = 'harbor-cred'
-        SONARQUBE = 'sonarqube'
+        SONAR_SERVER_NAME = 'sonarqube'
+        SONAR_TOKEN_ID = 'sonarqube-token' // 등록하신 Credential ID
     }
 
     stages {
         stage('Prepare') {
             steps {
                 script {
-                    // 프론트엔드 버전 정보 읽기 (파일이 없다면 '1.0' 기본값 사용)
                     def baseVer = "1.0"
                     try {
                         baseVer = readFile('frontend/version.txt').trim()
@@ -31,13 +31,15 @@ pipeline {
             steps {
                 script {
                     def scannerHome = tool 'sonar-scanner'
-                    // credentialsId는 젠킨스에 등록한 소나큐브 토큰의 ID를 넣어야 합니다. (예: sonarqube-token)
-                    withSonarQubeEnv(installationName: "${SONARQUBE}") {
-                        // 프론트엔드 폴더만 정밀 스캔
-                        sh "${scannerHome}/bin/sonar-scanner \
+                    // withCredentials를 통해 등록된 토큰을 직접 꺼내옵니다.
+                    withCredentials([string(credentialsId: "${SONAR_TOKEN_ID}", variable: 'S_TOKEN')]) {
+                        sh """
+                        ${scannerHome}/bin/sonar-scanner \
                         -Dsonar.projectKey=alphacar-frontend \
                         -Dsonar.sources=frontend \
-                        -Dsonar.host.url=http://192.168.56.200:32001"
+                        -Dsonar.host.url=http://192.168.56.200:32001 \
+                        -Dsonar.login=${S_TOKEN}
+                        """
                     }
                 }
             }
@@ -46,7 +48,6 @@ pipeline {
         stage('Docker Build') {
             steps {
                 echo "🔨 Next.js 이미지 빌드 중..."
-                // 프론트엔드 폴더 내의 Dockerfile을 사용하여 빌드
                 sh "docker build -f frontend/Dockerfile -t ${HARBOR_URL}/${HARBOR_PROJECT}/${IMAGE_NAME}:${env.FULL_VERSION} frontend/"
             }
         }
@@ -65,7 +66,6 @@ pipeline {
 
         stage('Cleanup') {
             steps {
-                // 빌드 완료 후 로컬 이미지 삭제하여 용량 확보
                 sh "docker rmi ${HARBOR_URL}/${HARBOR_PROJECT}/${IMAGE_NAME}:${env.FULL_VERSION}"
             }
         }
@@ -73,10 +73,10 @@ pipeline {
 
     post {
         success {
-            echo "✅ 프론트엔드 배포 준비 완료! 하버에서 ${env.FULL_VERSION} 태그를 확인하세요."
+            echo "✅ 모든 단계 성공! 하버에서 ${env.FULL_VERSION} 태그를 확인하세요."
         }
         failure {
-            echo "❌ 프론트엔드 빌드 실패! 로그를 확인해 주세요."
+            echo "❌ 빌드 실패! 로그를 확인해 주세요."
         }
     }
 }
