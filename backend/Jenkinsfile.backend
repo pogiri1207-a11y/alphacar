@@ -166,7 +166,7 @@ pipeline {
                             buildSteps["Build-${service}"] = {
                                 echo "📦 Building [${service}]..."
                                 def imageBase = "192.168.56.200:30002/${HARBOR_PROJECT}/${service}"
-                                timeout(time: 30, unit: 'MINUTES') {
+                                timeout(time: 20, unit: 'MINUTES') {
                                     sh """
                                         # BuildKit 활성화 및 캐시 이미지 pull
                                         export DOCKER_BUILDKIT=1
