@@ -37,19 +37,17 @@ RUN if [ -f ${APP_NAME}/instrumentation.ts ]; then \
     fi
 
 # 1-6. 빌드 실행 -> dist 폴더 생성
-# node_modules가 제대로 설치되었는지 확인 후 빌드
-RUN echo "🔍 Checking node_modules..." && \
-    ls -la node_modules | head -5 && \
-    echo "🔍 Checking if required packages exist..." && \
-    [ -d "node_modules/ioredis" ] && echo "✅ ioredis found" || echo "❌ ioredis not found" && \
-    [ -d "node_modules/class-validator" ] && echo "✅ class-validator found" || echo "❌ class-validator not found" && \
-    [ -d "node_modules/class-transformer" ] && echo "✅ class-transformer found" || echo "❌ class-transformer not found" && \
+# main 디렉토리로 이동하기 전에 node_modules 심볼릭 링크 생성
+# 또는 루트에서 빌드하되 프로젝트 경로 지정
+RUN echo "🔍 Verifying node_modules installation..." && \
+    [ -d "node_modules/ioredis" ] || (echo "❌ ioredis not found in node_modules" && exit 1) && \
+    [ -d "node_modules/class-validator" ] || (echo "❌ class-validator not found in node_modules" && exit 1) && \
+    [ -d "node_modules/class-transformer" ] || (echo "❌ class-transformer not found in node_modules" && exit 1) && \
+    echo "✅ All required packages found" && \
     cd ${APP_NAME} && \
     echo "🚀 Starting nest build in ${APP_NAME}..." && \
-    echo "🔍 Current directory: $(pwd)" && \
-    echo "🔍 Checking node_modules from ${APP_NAME}:" && \
-    ls -la ../node_modules | head -5 && \
-    nest build || (echo "❌ Build failed! Check errors above." && exit 1)
+    # 상위 디렉토리의 node_modules를 참조할 수 있도록 NODE_PATH 설정
+    NODE_PATH=/app/node_modules nest build || (echo "❌ Build failed! Check errors above." && exit 1)
 
 # 🔥 [다이어트 핵심] 빌드 완료 후, 실행에 필요 없는 '개발용 패키지' 제거
 # 이 명령어가 실행되면 node_modules 크기가 확 줄어듭니다.
