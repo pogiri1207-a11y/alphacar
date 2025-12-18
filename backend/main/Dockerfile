@@ -58,5 +58,5 @@ COPY --from=builder /app/${APP_NAME}/node_modules ./${APP_NAME}/node_modules || 
 COPY --from=builder /app/${APP_NAME}/dist ./dist
 COPY --from=builder /app/${APP_NAME}/package.json ./package.json
 
-# 2-3. 실행 명령어
-CMD ["node", "dist/main"]
+# 2-3. 실행 명령어 (nest build 결과물 경로)
+CMD ["node", "dist/main/main"]
