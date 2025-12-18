@@ -23,8 +23,11 @@ COPY . .
 RUN if [ -f instrumentation.ts ]; then       sed -i '/traceExporter:/i \        // @ts-ignore' instrumentation.ts;     fi
 RUN if [ -f main/instrumentation.ts ]; then       sed -i '/traceExporter:/i \        // @ts-ignore' main/instrumentation.ts;     fi
 
-# 7. 빌드 실행 (메모리 제한 및 타임아웃 설정)
-RUN NODE_OPTIONS="--max-old-space-size=4096" nest build main || (echo "Build failed, checking logs..." && exit 1)
+# 7. 빌드 실행 (메모리 제한, 타임아웃, 상세 로그)
+RUN echo "🚀 Starting nest build..." && \
+    NODE_OPTIONS="--max-old-space-size=4096" nest build main --verbose 2>&1 | tee /tmp/build.log && \
+    echo "✅ Build completed successfully" && \
+    ls -la dist/main/ || (echo "❌ Build failed, showing logs:" && cat /tmp/build.log && exit 1)
 
 # 8. 실행 명령어
 CMD ["node", "dist/main/main"]

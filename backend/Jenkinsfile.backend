@@ -172,7 +172,11 @@ pipeline {
                                         export DOCKER_BUILDKIT=1
                                         docker pull ${imageBase}:latest || true
                                         
-                                        # BuildKit을 사용한 빠른 빌드 (타임아웃 및 진행 상황 표시)
+                                        # 빌드 컨텍스트 확인
+                                        echo "📁 Build context: backend/"
+                                        echo "📄 Dockerfile: backend/${service}/Dockerfile"
+                                        
+                                        # BuildKit을 사용한 빠른 빌드 (상세 로그)
                                         docker build \\
                                             --build-arg APP_NAME=${service} \\
                                             --cache-from ${imageBase}:latest \\
@@ -181,16 +185,22 @@ pipeline {
                                             -f backend/${service}/Dockerfile \\
                                             -t ${imageBase}:${env.FULL_VERSION} \\
                                             -t ${imageBase}:latest \\
-                                            backend/ || {
-                                            echo "⚠️ Build failed, retrying without cache..."
+                                            backend/ 2>&1 | tee /tmp/build-${service}.log || {
+                                            echo "⚠️ Build failed, checking logs..."
+                                            tail -50 /tmp/build-${service}.log || true
+                                            echo "⚠️ Retrying without cache..."
                                             docker build \\
                                                 --build-arg APP_NAME=${service} \\
-                                                --no-cache=false \\
+                                                --progress=plain \\
                                                 -f backend/${service}/Dockerfile \\
                                                 -t ${imageBase}:${env.FULL_VERSION} \\
                                                 -t ${imageBase}:latest \\
                                                 backend/
                                         }
+                                        
+                                        # 빌드된 이미지 확인
+                                        docker images | grep ${service} | head -3
+                                        echo "✅ Image built: ${imageBase}:${env.FULL_VERSION}"
                                     """
                                 }
                             }
