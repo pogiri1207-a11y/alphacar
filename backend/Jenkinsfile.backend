@@ -165,17 +165,18 @@ pipeline {
                         serviceList.each { service ->
                             buildSteps["Build-${service}"] = {
                                 echo "📦 Building [${service}]..."
+                                def imageBase = "192.168.56.200:30002/${HARBOR_PROJECT}/${service}"
                                 sh """
-                                    # 캐시 이미지 pull 시도
-                                    docker pull ${HARBOR_URL}/${HARBOR_PROJECT}/${service}:latest || true
+                                    # 캐시 이미지 pull 시도 (프로토콜 없이)
+                                    docker pull ${imageBase}:latest || true
                                     
-                                    # 빌드 (캐시 사용) - Harbor URL에서 http:// 제거
+                                    # 빌드 (캐시 사용)
                                     docker build \\
                                         --build-arg APP_NAME=${service} \\
-                                        --cache-from ${HARBOR_URL}/${HARBOR_PROJECT}/${service}:latest \\
+                                        --cache-from ${imageBase}:latest \\
                                         -f backend/${service}/Dockerfile \\
-                                        -t 192.168.56.200:30002/${HARBOR_PROJECT}/${service}:${env.FULL_VERSION} \\
-                                        -t 192.168.56.200:30002/${HARBOR_PROJECT}/${service}:latest \\
+                                        -t ${imageBase}:${env.FULL_VERSION} \\
+                                        -t ${imageBase}:latest \\
                                         backend/
                                 """
                             }
