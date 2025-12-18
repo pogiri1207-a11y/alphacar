@@ -1,0 +1,924 @@
+/* ===========================
+   ALPHACAR 기본 스타일
+   - 배경: 화이트
+   - 포인트: 블루 (#0066ff)
+=========================== */
+
+/* Pretendard 폰트 로드 */
+@import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css');
+
+/* 공통 컬러 변수 */
+:root {
+  --color-bg: #ffffff;        /* 전체 배경 */
+  --color-primary: #0066ff;   /* 메인 포인트 블루 */
+  --color-text: #222222;      /* 기본 글자색 */
+  --color-border: #e2e2e2;    /* 기본 보더 */
+  --color-muted: #666666;     /* 보조 텍스트 */
+}
+
+/* 리셋 + 기본 */
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: "Pretendard Variable", "Pretendard", -apple-system, BlinkMacSystemFont, "Noto Sans KR", system-ui,
+    sans-serif;
+  background-color: var(--color-bg); /* ✅ 회색 → 완전 흰색 */
+  color: var(--color-text);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+/* 전체 레이아웃 공통 */
+.page-wrapper {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding-bottom: 60px;
+}
+
+/* 헤더 */
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 18px 8px;
+}
+
+.logo {
+  font-size: 22px;
+  font-weight: 700;
+  letter-spacing: 1px;
+}
+
+.mypage-btn {
+  padding: 8px 16px;
+  border-radius: 999px;
+  border: 1px solid #ddd;
+  font-size: 14px;
+  background-color: #ffffff;
+  cursor: pointer;
+}
+
+/* 상단 네비게이션 */
+.top-nav {
+  display: flex;
+  gap: 16px;
+  padding: 8px 4px 16px;
+  border-bottom: 1px solid #eee;
+}
+
+.nav-item {
+  padding: 8px 14px;
+  border-radius: 999px;
+  background-color: #ffffff;
+  border: 1px solid #e2e2e2;
+  font-size: 14px;
+}
+
+/* ===== 배너 영역 ===== */
+
+.banner-section {
+  max-width: 1200px;
+  margin: 40px auto 0;
+  padding: 0 20px;
+  position: relative; /* 배너 점 위치 기준 */
+}
+
+.banner-slide {
+  width: 100%;
+  height: 260px;
+  border-radius: 16px;
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  cursor: pointer;
+  overflow: hidden;
+}
+
+/* 실제 배너 이미지 */
+.banner-img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain; /* 이미지 안 잘리게 */
+  display: block;
+}
+
+/* 배너 위 텍스트 영역 */
+.banner-text-overlay {
+  position: absolute;
+  left: 40px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: #222;
+  background: rgba(255, 255, 255, 0.6);
+  padding: 10px 16px;
+  border-radius: 12px;
+  backdrop-filter: blur(2px);
+}
+
+.banner-text-overlay h2 {
+  font-size: 24px;
+  font-weight: 700;
+  margin-bottom: 4px;
+}
+
+.banner-text-overlay p {
+  font-size: 14px;
+}
+
+/* 배너 하단 점 ●●● */
+.banner-dots {
+  position: absolute; /* 배너 안에 고정 */
+  bottom: 12px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 8px;
+  background: rgba(0, 0, 0, 0.4);
+  border-radius: 10px;
+  padding: 4px 8px;
+}
+
+.dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  border: none;
+  background-color: rgba(255, 255, 255, 0.5);
+  cursor: pointer;
+  padding: 0;
+  transition: all 0.2s ease;
+}
+
+.dot.active {
+  width: 18px;
+  background-color: #ffffff;
+  border-radius: 4px;
+  transform: none;
+}
+
+/* 검색 영역 */
+.search-section {
+  margin-top: 24px;
+}
+
+.search-inner {
+  max-width: 680px;
+  margin: 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.search-box {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background-color: #ffffff;
+  border-radius: 999px;
+  padding: 10px 16px;
+  border: 1px solid #ddd;
+}
+
+.search-icon {
+  font-size: 16px;
+}
+
+.search-box input {
+  border: none;
+  outline: none;
+  width: 100%;
+  font-size: 14px;
+}
+
+/* 검색 버튼 */
+.search-submit-btn {
+  padding: 10px 26px;
+  border-radius: 999px;
+  border: none;
+  background-color: var(--color-primary); /* ✅ 메인 블루 */
+  color: #ffffff;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  box-shadow: 0 3px 8px rgba(0, 102, 255, 0.3);
+}
+
+.search-submit-btn:hover {
+  filter: brightness(1.05);
+}
+
+/* TOP10 섹션 */
+.topcar-section {
+  margin-top: 32px;
+}
+
+.topcar-section h3 {
+  font-size: 18px;
+  margin-bottom: 12px;
+}
+
+.topcar-slider {
+  display: flex;
+  gap: 24px;
+  padding: 16px;
+  border-radius: 16px;
+  background-color: #ffffff;
+}
+
+.topcar-image-wrap {
+  flex: 1;
+}
+
+.topcar-image-placeholder {
+  width: 100%;
+  height: 180px;
+  border-radius: 12px;
+  background-color: #eee;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--color-muted);
+  font-size: 14px;
+}
+
+.topcar-info {
+  width: 220px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 8px;
+}
+
+.topcar-name {
+  font-weight: 600;
+}
+
+.topcar-sub {
+  font-size: 13px;
+  color: var(--color-muted);
+}
+
+/* =======================
+   브랜드 + 차량 리스트
+   ======================= */
+
+.brand-section {
+  margin-top: 32px;
+}
+
+/* 브랜드 버튼 그리드 - 창 크기에 맞게 조정 */
+.brand-tabs {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(90px, 1fr));
+  gap: 12px;
+  width: 100%;
+}
+
+@media (max-width: 1200px) {
+  .brand-tabs {
+    grid-template-columns: repeat(auto-fit, minmax(85px, 1fr));
+    gap: 10px;
+  }
+}
+
+@media (max-width: 768px) {
+  .brand-tabs {
+    grid-template-columns: repeat(auto-fit, minmax(75px, 1fr));
+    gap: 8px;
+  }
+}
+
+/* 기본 브랜드 버튼: 로고 이미지 + 브랜드명 세로 배치 */
+.brand-btn {
+  width: 100%;
+  padding: 12px 8px;
+  border-radius: 12px;
+  border: 1px solid #e5e7eb;   /* 기본 연한 회색 테두리 */
+  background-color: #ffffff;
+  color: #111111;
+  font-size: 13px;
+  cursor: pointer;
+  text-align: center;
+  transition: all 0.15s ease;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 90px;
+}
+
+/* 호버 시: 테두리/글씨만 파란색 */
+.brand-btn:hover {
+  border-color: #2563eb;
+  color: #2563eb;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(37, 99, 235, 0.1);
+}
+
+/* 선택된 브랜드: 파란 테두리 + 파란 글씨 (배경은 흰색 유지) */
+.brand-btn-active {
+  border-color: #2563eb;
+  color: #2563eb;
+  font-weight: 600;
+  background-color: #f0f8ff;
+}
+
+/* 브랜드 로고 이미지 스타일 */
+.brand-btn img {
+  width: 40px;
+  height: 40px;
+  object-fit: contain;
+  margin-bottom: 4px;
+}
+
+/* 차량 리스트 */
+.car-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 16px;
+}
+
+/* 차량 카드 박스 */
+.car-card {
+  background-color: #ffffff;
+  border-radius: 14px;
+  padding: 12px;
+  border: 1px solid #eee;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+/* 차량 이미지 들어가는 구역 */
+.car-image-placeholder {
+  width: 100%;
+  height: 120px;
+  border-radius: 10px;
+  background-color: #f1f1f1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  color: var(--color-muted);
+}
+
+.car-info {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.car-name {
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.car-price {
+  font-size: 13px;
+  color: var(--color-primary); /* ✅ 가격 포인트 컬러 */
+}
+
+.car-detail-btn {
+  margin-top: 4px;
+  align-self: flex-start;
+  padding: 6px 12px;
+  border-radius: 999px;
+  border: none;
+  font-size: 12px;
+  background-color: var(--color-primary); /* ✅ 블루 버튼 */
+  color: #ffffff;
+  cursor: pointer;
+}
+
+.empty-text {
+  font-size: 14px;
+  color: #777;
+}
+
+/* 검색 결과 페이지 */
+.result-page {
+  max-width: 1100px;
+  margin: 24px auto 60px;
+  padding: 0 8px;
+}
+
+.result-title {
+  font-size: 22px;
+  font-weight: 700;
+}
+
+.result-keyword {
+  margin-left: 6px;
+  font-size: 20px;
+  color: var(--color-primary); /* ✅ 검색 키워드 블루 */
+}
+
+.result-sub {
+  margin-top: 4px;
+  font-size: 13px;
+  color: #666;
+}
+
+.car-result-list {
+  margin-top: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.car-result-row {
+  display: grid;
+  grid-template-columns: 170px 1fr 180px;
+  gap: 16px;
+  padding: 14px 18px;
+  background-color: #ffffff;
+  border-radius: 12px;
+  border: 1px solid #e5e5e5;
+}
+
+.car-thumb-placeholder {
+  width: 100%;
+  height: 100px;
+  border-radius: 8px;
+  background-color: #f3f3f3;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  color: var(--color-muted);
+}
+
+.car-name-brand {
+  font-size: 13px;
+  margin-bottom: 4px;
+}
+
+.car-brand {
+  font-weight: 700;
+  margin-right: 4px;
+}
+
+.car-model {
+  color: #444;
+}
+
+.car-title {
+  font-size: 14px;
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+
+.car-meta-top,
+.car-meta-bottom {
+  font-size: 12px;
+  color: #777;
+}
+
+.car-price-box {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: flex-end;
+  gap: 6px;
+  font-size: 13px;
+}
+
+.car-price-line {
+  display: flex;
+  gap: 8px;
+}
+
+.car-price-label {
+  color: #999;
+}
+
+.car-price-sub {
+  color: #333;
+}
+
+.car-check-btn {
+  margin-top: 4px;
+  padding: 8px 16px;
+  border-radius: 999px;
+  border: none;
+  background-color: var(--color-primary); /* ✅ 블루 버튼 */
+  color: #ffffff;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+/* 반응형 */
+@media (max-width: 768px) {
+  .banner-slide {
+    height: 220px;
+  }
+
+  .banner-text-overlay {
+    left: 20px;
+  }
+
+  .banner-text-overlay h2 {
+    font-size: 18px;
+  }
+
+  .banner-text-overlay p {
+    font-size: 12px;
+  }
+
+  .topcar-slider {
+    flex-direction: column;
+  }
+
+  .topcar-info {
+    width: 100%;
+  }
+
+  .car-result-row {
+    grid-template-columns: 1fr;
+  }
+
+  .car-price-box {
+    align-items: flex-start;
+  }
+}
+
+/* 페이지네이션 */
+.pagination {
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+  margin: 24px 0 40px;
+}
+
+.page-btn {
+  min-width: 32px;
+  height: 32px;
+  padding: 0 8px;
+  border-radius: 999px;
+  border: 1px solid #d0d7de;
+  background-color: #ffffff;
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.page-btn:hover {
+  border-color: var(--color-primary);
+  color: var(--color-primary);
+}
+
+.page-btn-active {
+  background-color: var(--color-primary);
+  border-color: var(--color-primary);
+  color: #ffffff;
+  font-weight: 600;
+}
+
+/* =========================
+   GNB / 전체메뉴 공통 스타일
+   ========================= */
+
+/* 전체 기본 폰트 */
+:root {
+  --font-main: "SUIT", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
+    sans-serif;
+}
+
+html,
+body {
+  font-family: var(--font-main);
+}
+
+/* 상단 GNB 네비게이션 (견적 비교 / 소식 / 커뮤니티) */
+.gnb-nav {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  font-size: 15px;
+}
+
+.gnb-link {
+  position: relative;
+  text-decoration: none;
+  color: #222;
+  font-weight: 600;
+  padding-bottom: 4px;
+}
+
+.gnb-link:hover {
+  color: #111;
+}
+
+/* 선택된 메뉴 밑줄 애니메이션 */
+.gnb-link::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  height: 2px;
+  width: 0;
+  background-color: #111;
+  transition: width 0.25s ease;
+}
+
+.gnb-link-active::after {
+  width: 100%;
+}
+
+/* =========================
+   전체메뉴(메가 메뉴) 패널
+   ========================= */
+
+.mega-menu-panel {
+  position: absolute;
+  left: 0;
+  top: 100%;
+  width: 100%;
+  background-color: #ffffff;
+  border-top: 1px solid #eee;
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.08);
+  z-index: 999;
+}
+
+/* 안쪽 컨테이너 */
+.mega-menu-panel > div {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 24px 40px 40px;
+}
+
+/* 인사말 영역 */
+.mega-greeting {
+  margin-bottom: 24px;
+  font-size: 18px;
+}
+
+.mega-greeting-name {
+  font-weight: 800;
+  margin-right: 4px;
+}
+
+.mega-greeting-sub {
+  font-weight: 500;
+  color: #444;
+}
+
+/* 6개 컬럼 그리드 (견적비교 / 소식 / 커뮤니티 / 이벤트 / 마이페이지+상담 / 혜택+고객센터) */
+.mega-menu-grid {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  column-gap: 40px;
+  row-gap: 24px;
+}
+
+/* 각 컬럼 제목 */
+.mega-menu-title {
+  font-size: 16px;
+  font-weight: 800;
+  margin-bottom: 14px;
+  padding-bottom: 6px;
+  border-bottom: 2px solid #ddd;
+}
+
+/* 고객센터 전화번호 */
+.mega-call-number {
+  margin-top: 4px;
+  font-size: 22px;
+  font-weight: 800;
+  letter-spacing: 0.03em;
+}
+
+/* 상단 GNB 밑줄 애니메이션 (업데이트 버전) */
+.gnb-link {
+  position: relative;
+  padding-bottom: 2px;
+}
+
+.gnb-link::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  height: 2px;
+  width: 100%;
+  background-color: #0070f3; /* 파란색 */
+  transform: scaleX(0);
+  transform-origin: right; /* 오른쪽 기준으로 줄어든 상태 */
+  transition: transform 0.25s ease;
+}
+
+/* 호버 또는 활성 메뉴일 때: 오른쪽 → 왼쪽으로 채워지는 느낌 */
+.gnb-link:hover::after,
+.gnb-link-active::after {
+  transform: scaleX(1);
+  transform-origin: left;
+}
+
+/* 전체메뉴 박스 위에서 스르륵 내려오는 모션 */
+.mega-panel {
+  animation: megaSlideDown 0.4s ease-out;
+}
+
+@keyframes megaSlideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+/* ===========================
+   제조사별 시승 신청 슬라이더
+=========================== */
+/* ===========================
+   제조사별 시승 신청 슬라이더
+=========================== */
+.brand-testdrive-section {
+  width: 100%;
+  margin: 60px 0 40px;
+}
+
+.brand-testdrive-title {
+  font-size: 22px;
+  font-weight: 600;
+  text-align: center;
+  margin-bottom: 20px;
+}
+
+/* 화면 최대한 채우는 느낌 (양쪽 여백 줄임, 최대 폭 넓힘) */
+.brand-testdrive-wrapper {
+  position: relative;
+  border-top: 1px solid #e5e5e5;
+  border-bottom: 1px solid #e5e5e5;
+  padding: 20px 32px;
+  max-width: 1400px;
+  margin: 0 auto;
+}
+
+@media (max-width: 1200px) {
+  .brand-testdrive-wrapper {
+    max-width: 100%;
+    padding: 16px 16px;
+  }
+}
+
+.brand-testdrive-scroll {
+  overflow-x: auto;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.brand-testdrive-scroll::-webkit-scrollbar {
+  display: none;
+}
+
+.brand-testdrive-list {
+  display: flex;
+  gap: 12px;
+  min-width: max-content;
+}
+
+/* 카드 더 크게 + 호버 확대 */
+.brand-testdrive-item {
+  width: 150px;
+  height: 120px;
+  border: 1px solid #e5e5e5;
+  background-color: #ffffff;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-decoration: none;
+  transition: transform 0.2s ease, box-shadow 0.2s ease,
+    border-color 0.2s ease;
+}
+
+.brand-testdrive-item:hover {
+  transform: scale(1.06);
+  box-shadow: 0 10px 22px rgba(0, 0, 0, 0.12);
+  border-color: #0066ff;
+}
+
+/* 로고 사이즈 업 */
+.brand-testdrive-logo {
+  width: 56px;
+  height: 56px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 10px;
+}
+
+.brand-testdrive-logo img {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+}
+
+/* 브랜드 이름 폰트 키움 */
+.brand-testdrive-name {
+  font-size: 14px;
+  color: #333333;
+}
+
+/* 좌우 화살표(동그라미 버튼) */
+.brand-testdrive-arrow {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  border: 1px solid #dddddd;
+  background-color: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  font-size: 14px;
+  line-height: 1;
+}
+
+.brand-testdrive-arrow.left {
+  left: 8px;
+}
+
+.brand-testdrive-arrow.right {
+  right: 8px;
+}
+
+/* 아래 진행 바: 스크롤 위치와 연동 */
+.brand-testdrive-progress {
+  width: 100%;
+  margin-top: 12px;
+}
+
+.brand-testdrive-progress-inner {
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 0 32px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+@media (max-width: 1200px) {
+  .brand-testdrive-progress-inner {
+    max-width: 100%;
+    padding: 0 16px;
+  }
+}
+
+.brand-testdrive-progress-line {
+  flex: 1;
+  height: 2px;
+  background-color: #e5e5e5;
+  position: relative;
+  overflow: hidden;
+}
+
+/* 검은 라인이 스크롤 비율만큼 채워짐 */
+.brand-testdrive-progress-indicator {
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: 2px;
+  background-color: #111111;
+  transition: width 0.25s ease;
+}
+
+.brand-testdrive-progress-arrows {
+  display: flex;
+  gap: 8px;
+  font-size: 11px;
+  color: #666666;
+  margin-left: 10px;
+  align-items: center;
+}
+
+.brand-testdrive-progress-arrows button {
+  border: none;
+  background: transparent;
+  padding: 0;
+  font-size: 11px;
+  color: #666666;
+  cursor: pointer;
+}
+
+.brand-testdrive-progress-arrows span {
+  font-size: 11px;
+  color: #666666;
+}
+

@@ -121,7 +121,9 @@ export default function CarDetailModal({ car, onClose }: CarDetailModalProps) {
   
   const carName = car?.name || car?.vehicle_name;
   const brandName = car?.manufacturer || car?.brand_name;
-  const imageUrl = car?.imageUrl || car?.main_image;
+  // ✅ 이미지 우선순위: 1) car 객체의 imageUrl (메인페이지에서 전달), 2) carDetail의 main_image (API 응답), 3) car의 main_image
+  // carDetail이 업데이트되면 컴포넌트가 리렌더링되면서 imageUrl도 다시 계산됨
+  const imageUrl = car?.imageUrl || carDetail?.main_image || car?.main_image || carDetail?.image_url;
   const displayPrice = car?.minPrice || (car?.trims && car.trims[0]?.price) || car?.base_price || car?.price;
 
   useEffect(() => {
@@ -394,9 +396,10 @@ export default function CarDetailModal({ car, onClose }: CarDetailModalProps) {
   useEffect(() => {
     const images: ImageItem[] = [];
     
-    // 메인 이미지 추가
-    if (imageUrl) {
-      images.push({ url: imageUrl, name: carName || "메인 이미지", type: "main" });
+    // 메인 이미지 추가 (우선순위: car.imageUrl > carDetail.main_image > car.main_image > carDetail.image_url)
+    const mainImageUrl = car?.imageUrl || carDetail?.main_image || car?.main_image || carDetail?.image_url;
+    if (mainImageUrl) {
+      images.push({ url: mainImageUrl, name: carName || "메인 이미지", type: "main" });
     }
     
     // 색상 이미지 추가
@@ -437,7 +440,7 @@ export default function CarDetailModal({ car, onClose }: CarDetailModalProps) {
     });
     
     setAllImages(images);
-  }, [imageUrl, carName, colorImages, exteriorImages, interiorImages]);
+  }, [car?.imageUrl, carDetail?.main_image, car?.main_image, carDetail?.image_url, carName, colorImages, exteriorImages, interiorImages]);
   
   // 키보드 이벤트 처리 (ESC로 닫기, 화살표로 이동)
   useEffect(() => {

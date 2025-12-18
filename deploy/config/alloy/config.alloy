@@ -1,0 +1,144 @@
+// Alloy 설정 파일 - MSA 구조용 (오류 수정 완료 버전)
+// 모니터링 서버: 192.168.0.175
+
+// 1. Prometheus Remote Write
+prometheus.remote_write "prometheus" {
+  endpoint {
+    url = "http://192.168.0.175:9090/api/v1/write"
+  }
+}
+
+// 2. Loki Write
+loki.write "loki" {
+  endpoint {
+    url = "http://192.168.0.175:3100/loki/api/v1/push"
+  }
+}
+
+// 3. Tempo (Trace) Exporter [수정됨: tls 블록 추가]
+otelcol.exporter.otlp "tempo" {
+  client {
+    endpoint = "192.168.0.175:4317"
+    // [중요] insecure 설정은 tls 블록 안에 있어야 합니다.
+    tls {
+      insecure = true
+    }
+  }
+}
+
+// ============================================
+// 메트릭 수집 (서비스별)
+// ============================================
+
+prometheus.scrape "main_backend" {
+  targets = [ {"__address__" = "main-backend:3002", "job" = "main-backend", "service" = "main"} ]
+  forward_to = [prometheus.remote_write.prometheus.receiver]
+  scrape_interval = "15s"
+  metrics_path = "/metrics"
+}
+
+prometheus.scrape "quote_backend" {
+  targets = [ {"__address__" = "quote-backend:3003", "job" = "quote-backend", "service" = "quote"} ]
+  forward_to = [prometheus.remote_write.prometheus.receiver]
+  scrape_interval = "15s"
+  metrics_path = "/metrics"
+}
+
+prometheus.scrape "community_backend" {
+  targets = [ {"__address__" = "community-backend:3005", "job" = "community-backend", "service" = "community"} ]
+  forward_to = [prometheus.remote_write.prometheus.receiver]
+  scrape_interval = "15s"
+  metrics_path = "/metrics"
+}
+
+prometheus.scrape "drive_backend" {
+  targets = [ {"__address__" = "drive-backend:3008", "job" = "drive-backend", "service" = "drive"} ]
+  forward_to = [prometheus.remote_write.prometheus.receiver]
+  scrape_interval = "15s"
+  metrics_path = "/metrics"
+}
+
+prometheus.scrape "mypage_backend" {
+  targets = [ {"__address__" = "mypage-backend:3006", "job" = "mypage-backend", "service" = "mypage"} ]
+  forward_to = [prometheus.remote_write.prometheus.receiver]
+  scrape_interval = "15s"
+  metrics_path = "/metrics"
+}
+
+prometheus.scrape "aichat_backend" {
+  targets = [ {"__address__" = "aichat-backend:4000", "job" = "aichat-backend", "service" = "aichat"} ]
+  forward_to = [prometheus.remote_write.prometheus.receiver]
+  scrape_interval = "15s"
+  metrics_path = "/metrics"
+}
+
+prometheus.scrape "search_backend" {
+  targets = [ {"__address__" = "search-backend:3007", "job" = "search-backend", "service" = "search"} ]
+  forward_to = [prometheus.remote_write.prometheus.receiver]
+  scrape_interval = "15s"
+  metrics_path = "/metrics"
+}
+
+// ============================================
+// 로그 수집 - Docker Discovery (통합)
+// ============================================
+
+// 1. Docker 컨테이너 발견
+discovery.docker "containers" {
+    host = "unix:///var/run/docker.sock"
+}
+
+// 2. 라벨링 및 경로 설정
+discovery.relabel "app_logs" {
+    targets = discovery.docker.containers.targets
+
+    // Docker 로그 경로 매핑
+    rule {
+        source_labels = ["__meta_docker_container_log_path"]
+        target_label  = "__path__"
+    }
+
+    // 컨테이너 이름
+    rule {
+        source_labels = ["__meta_docker_container_name"]
+        regex         = "/(.*)"
+        target_label  = "container"
+    }
+
+    // 서비스 이름 (job)
+    rule {
+        source_labels = ["__meta_docker_container_name"]
+        regex         = "/(.*)"
+        replacement   = "$1"
+        target_label  = "job"
+    }
+
+    // 로그 타입
+    rule {
+        target_label  = "log_type"
+        replacement   = "application"
+    }
+}
+
+// 3. 로그 파일 읽기 및 전송
+// loki.source.file "all_app_logs" 
+loki.source.docker "all_app_logs" {
+    host       = "unix:///var/run/docker.sock"
+    targets    = discovery.relabel.app_logs.output
+    forward_to = [loki.write.loki.receiver]
+}
+
+// [삭제됨] 에러를 유발하던 nginx_logs 섹션은 제거했습니다. 
+// 위쪽의 discovery.docker가 Nginx 로그도 자동으로 수집합니다.
+
+// ============================================
+// 트레이스 수집 - OTLP
+// ============================================
+
+otelcol.receiver.otlp "traces" {
+  grpc { endpoint = "0.0.0.0:4317" }
+  http { endpoint = "0.0.0.0:4318" }
+  output {
+    traces = [otelcol.exporter.otlp.tempo.input]
+  }
+}

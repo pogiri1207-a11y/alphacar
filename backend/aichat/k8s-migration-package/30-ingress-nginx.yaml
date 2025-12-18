@@ -1,0 +1,108 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: alphacar-ingress
+  namespace: alphacar-production
+  annotations:
+    nginx.ingress.kubernetes.io/rewrite-target: /$2
+    nginx.ingress.kubernetes.io/use-regex: "true"
+    nginx.ingress.kubernetes.io/ssl-redirect: "false"
+    # Rate Limiting
+    nginx.ingress.kubernetes.io/limit-rps: "2000"
+    nginx.ingress.kubernetes.io/limit-burst-multiplier: "1.5"
+spec:
+  ingressClassName: nginx
+  rules:
+  - host: alphacar.192.168.56.161.nip.io
+    http:
+      paths:
+      # Frontend (우선순위 낮음)
+      - path: /()(.*)
+        pathType: Prefix
+        backend:
+          service:
+            name: frontend-service
+            port:
+              number: 80
+      
+      # Auth (MyPage) - 우선순위 높음
+      - path: /auth(/|$)(.*)
+        pathType: Prefix
+        backend:
+          service:
+            name: mypage-service
+            port:
+              number: 80
+      
+      # AI Chat
+      - path: /api/chat(/|$)(.*)
+        pathType: Prefix
+        backend:
+          service:
+            name: aichat-service
+            port:
+              number: 80
+      
+      # Quote - Vehicle Detail (우선순위 최고)
+      - path: /api/vehicles/detail(/|$)(.*)
+        pathType: Prefix
+        backend:
+          service:
+            name: main-service
+            port:
+              number: 80
+      
+      # Quote - Vehicles & Estimate
+      - path: /api/(vehicles|estimate|quote)(/|$)(.*)
+        pathType: Prefix
+        backend:
+          service:
+            name: quote-service
+            port:
+              number: 80
+      
+      # Main Backend
+      - path: /api/(main|history|recent-views|sales|brands|favorites|log-view|cars|review-analysis)(/|$)(.*)
+        pathType: Prefix
+        backend:
+          service:
+            name: main-service
+            port:
+              number: 80
+      
+      # Search
+      - path: /api/search(/|$)(.*)
+        pathType: Prefix
+        backend:
+          service:
+            name: search-service
+            port:
+              number: 80
+      
+      # MyPage
+      - path: /api/mypage(/|$)(.*)
+        pathType: Prefix
+        backend:
+          service:
+            name: mypage-service
+            port:
+              number: 80
+      
+      # Community
+      - path: /api/community(/|$)(.*)
+        pathType: Prefix
+        backend:
+          service:
+            name: community-service
+            port:
+              number: 80
+      
+      # Drive
+      - path: /api/drive(/|$)(.*)
+        pathType: Prefix
+        backend:
+          service:
+            name: drive-service
+            port:
+              number: 80
+

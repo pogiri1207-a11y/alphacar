@@ -1,0 +1,17 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: common-config
+  namespace: alphacar-production
+data:
+  # OpenTelemetry 설정
+  OTEL_EXPORTER_OTLP_ENDPOINT: "http://192.168.0.175:4317"
+  OTEL_LOG_LEVEL: "debug"
+  OTEL_DIAG_LEVEL: "debug"
+  
+  # Node 환경
+  NODE_ENV: "production"
+  
+  # 타임존
+  TZ: "Asia/Seoul"
+

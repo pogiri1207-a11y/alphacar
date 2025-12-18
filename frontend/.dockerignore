@@ -1,6 +1,5 @@
 node_modules
-npm-debug.log
+.next
+out
+build
 .git
-.gitignore
-Dockerfile
-

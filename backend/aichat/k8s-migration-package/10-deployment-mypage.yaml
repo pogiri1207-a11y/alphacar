@@ -1,0 +1,111 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mypage-backend
+  namespace: alphacar-production
+  labels:
+    app: mypage-backend
+    tier: backend
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: mypage-backend
+  template:
+    metadata:
+      labels:
+        app: mypage-backend
+        tier: backend
+    spec:
+      imagePullSecrets:
+        - name: harbor-registry-secret
+      containers:
+      - name: mypage-backend
+        image: 192.168.0.169/alphacar-project/alphacar-mypage:1.0.0
+        ports:
+        - containerPort: 3006
+          name: http
+        env:
+        # MongoDB 설정
+        - name: DATABASE_HOST
+          valueFrom:
+            secretKeyRef:
+              name: mongodb-secret
+              key: host
+        - name: DATABASE_PORT
+          valueFrom:
+            secretKeyRef:
+              name: mongodb-secret
+              key: port
+        - name: DATABASE_USER
+          valueFrom:
+            secretKeyRef:
+              name: mongodb-secret
+              key: user
+        - name: DATABASE_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: mongodb-secret
+              key: password
+        - name: DATABASE_NAME
+          valueFrom:
+            secretKeyRef:
+              name: mongodb-secret
+              key: database
+        # MariaDB 설정
+        - name: MARIADB_HOST
+          valueFrom:
+            secretKeyRef:
+              name: mariadb-secret
+              key: host
+        - name: MARIADB_PORT
+          valueFrom:
+            secretKeyRef:
+              name: mariadb-secret
+              key: port
+        - name: MARIADB_USERNAME
+          valueFrom:
+            secretKeyRef:
+              name: mariadb-secret
+              key: username
+        - name: MARIADB_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: mariadb-secret
+              key: password
+        - name: MARIADB_DATABASE
+          valueFrom:
+            secretKeyRef:
+              name: mariadb-secret
+              key: database
+        # JWT 설정
+        - name: JWT_SECRET
+          valueFrom:
+            secretKeyRef:
+              name: jwt-secret
+              key: secret
+        envFrom:
+        - configMapRef:
+            name: common-config
+        - configMapRef:
+            name: mypage-backend-config
+        resources:
+          requests:
+            memory: "512Mi"
+            cpu: "200m"
+          limits:
+            memory: "1Gi"
+            cpu: "1000m"
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 3006
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 3006
+          initialDelaySeconds: 10
+          periodSeconds: 5
+

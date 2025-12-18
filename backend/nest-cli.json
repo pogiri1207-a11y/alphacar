@@ -1,5 +1,18 @@
 {
+  "collection": "@nestjs/schematics",
+  "sourceRoot": ".",
+  "compilerOptions": {
+    "webpack": true,
+    "deleteOutDir": true
+  },
   "projects": {
+    "main": { "type": "application", "root": "main", "sourceRoot": "main/src" },
+    "aichat": { "type": "application", "root": "aichat", "sourceRoot": "aichat/src" },
+    "mypage": { "type": "application", "root": "mypage", "sourceRoot": "mypage/src" },
+    "community": { "type": "application", "root": "community", "sourceRoot": "community/src" },
+    "search": { "type": "application", "root": "search", "sourceRoot": "search/src" },
+    "quote": { "type": "application", "root": "quote", "sourceRoot": "quote/src" },
+    "news": { "type": "application", "root": "news", "sourceRoot": "news/src" },
     "common": {
       "type": "library",
       "root": "libs/common",
@@ -9,8 +22,5 @@
         "tsConfigPath": "libs/common/tsconfig.lib.json"
       }
     }
-  },
-  "compilerOptions": {
-    "webpack": true
   }
 }

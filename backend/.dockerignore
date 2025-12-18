@@ -1,11 +1,20 @@
-**/node_module
-dist
-coverage
-.git
+# 1. 의존성 폴더 제외 (가장 중요)
+node_modules/
+*/node_modules/
+**/node_modules/
+
+# 2. 빌드 결과물 제외
+dist/
+*/dist/
+
+# 3. 깃 및 로그 파일 제외
+.git/
 .gitignore
-.env
-README.md
 *.log
-npm-debug.log
-vector_store
-**/vector_store
+npm-debug.log*
+
+# 4. 도커 관련 파일 제외
+Dockerfile
+*/Dockerfile
+docker-compose*.yml
+.dockerignore

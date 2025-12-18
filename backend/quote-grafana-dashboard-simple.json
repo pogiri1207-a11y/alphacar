@@ -1,0 +1,210 @@
+{
+  "dashboard": {
+    "title": "AlphaCar 견적 서비스 모니터링",
+    "tags": ["quote", "alphacar"],
+    "timezone": "browser",
+    "schemaVersion": 38,
+    "version": 1,
+    "refresh": "30s",
+    "panels": [
+      {
+        "id": 1,
+        "title": "API 요청 처리량",
+        "type": "timeseries",
+        "gridPos": {"h": 8, "w": 12, "x": 0, "y": 0},
+        "targets": [
+          {
+            "expr": "sum(rate(http_requests_total{job=\"quote-backend\"}[5m])) by (method, path)",
+            "legendFormat": "{{method}} {{path}}",
+            "refId": "A"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "reqps",
+            "custom": {
+              "drawStyle": "line",
+              "lineInterpolation": "smooth"
+            }
+          }
+        }
+      },
+      {
+        "id": 2,
+        "title": "응답 시간 (P95)",
+        "type": "timeseries",
+        "gridPos": {"h": 8, "w": 12, "x": 12, "y": 0},
+        "targets": [
+          {
+            "expr": "histogram_quantile(0.95, sum(rate(http_request_duration_seconds_bucket{job=\"quote-backend\"}[5m])) by (le, path))",
+            "legendFormat": "p95 {{path}}",
+            "refId": "A"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "s",
+            "decimals": 3
+          }
+        }
+      },
+      {
+        "id": 3,
+        "title": "에러율",
+        "type": "timeseries",
+        "gridPos": {"h": 8, "w": 12, "x": 0, "y": 8},
+        "targets": [
+          {
+            "expr": "sum(rate(http_requests_total{job=\"quote-backend\", status=~\"5..\"}[5m])) / sum(rate(http_requests_total{job=\"quote-backend\"}[5m])) * 100",
+            "legendFormat": "에러율",
+            "refId": "A"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "percent",
+            "min": 0,
+            "max": 100,
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {"value": 0, "color": "green"},
+                {"value": 1, "color": "yellow"},
+                {"value": 5, "color": "red"}
+              ]
+            }
+          }
+        }
+      },
+      {
+        "id": 4,
+        "title": "견적 저장 수",
+        "type": "stat",
+        "gridPos": {"h": 4, "w": 6, "x": 12, "y": 8},
+        "targets": [
+          {
+            "expr": "sum(increase(http_requests_total{job=\"quote-backend\", method=\"POST\", path=~\"/api/estimate.*\"}[1h]))",
+            "refId": "A"
+          }
+        ],
+        "options": {
+          "colorMode": "value",
+          "graphMode": "area"
+        }
+      },
+      {
+        "id": 5,
+        "title": "견적 조회 수",
+        "type": "stat",
+        "gridPos": {"h": 4, "w": 6, "x": 18, "y": 8},
+        "targets": [
+          {
+            "expr": "sum(increase(http_requests_total{job=\"quote-backend\", method=\"GET\", path=~\"/api/estimate.*\"}[1h]))",
+            "refId": "A"
+          }
+        ],
+        "options": {
+          "colorMode": "value",
+          "graphMode": "area"
+        }
+      },
+      {
+        "id": 6,
+        "title": "최근 에러 로그",
+        "type": "logs",
+        "gridPos": {"h": 8, "w": 24, "x": 0, "y": 12},
+        "datasource": {"type": "loki", "uid": "loki"},
+        "targets": [
+          {
+            "expr": "{job=\"quote-backend\"} |= \"error\" |= \"ERROR\"",
+            "refId": "A",
+            "queryType": "range"
+          }
+        ],
+        "options": {
+          "dedupStrategy": "none",
+          "enableLogDetails": true,
+          "showTime": true,
+          "sortOrder": "Descending"
+        }
+      },
+      {
+        "id": 7,
+        "title": "서비스 트레이스",
+        "type": "tempo",
+        "gridPos": {"h": 8, "w": 12, "x": 0, "y": 20},
+        "datasource": {"type": "tempo", "uid": "tempo"},
+        "targets": [
+          {
+            "serviceName": "quote-backend",
+            "refId": "A"
+          }
+        ]
+      },
+      {
+        "id": 8,
+        "title": "CPU 사용률",
+        "type": "timeseries",
+        "gridPos": {"h": 6, "w": 12, "x": 12, "y": 20},
+        "targets": [
+          {
+            "expr": "avg(rate(container_cpu_usage_seconds_total{pod=~\"quote-backend.*\"}[5m])) * 100",
+            "legendFormat": "CPU 사용률",
+            "refId": "A"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "percent",
+            "min": 0,
+            "max": 100
+          }
+        }
+      },
+      {
+        "id": 9,
+        "title": "메모리 사용률",
+        "type": "timeseries",
+        "gridPos": {"h": 6, "w": 12, "x": 0, "y": 26},
+        "targets": [
+          {
+            "expr": "avg(container_memory_usage_bytes{pod=~\"quote-backend.*\"}) / avg(container_spec_memory_limit_bytes{pod=~\"quote-backend.*\"}) * 100",
+            "legendFormat": "메모리 사용률",
+            "refId": "A"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "percent",
+            "min": 0,
+            "max": 100
+          }
+        }
+      },
+      {
+        "id": 10,
+        "title": "엔드포인트별 요청 분포",
+        "type": "bargauge",
+        "gridPos": {"h": 6, "w": 12, "x": 12, "y": 26},
+        "targets": [
+          {
+            "expr": "sum(increase(http_requests_total{job=\"quote-backend\"}[1h])) by (path)",
+            "legendFormat": "{{path}}",
+            "refId": "A"
+          }
+        ],
+        "options": {
+          "orientation": "horizontal",
+          "displayMode": "gradient"
+        }
+      }
+    ],
+    "time": {
+      "from": "now-6h",
+      "to": "now"
+    },
+    "templating": {
+      "list": []
+    }
+  }
+}

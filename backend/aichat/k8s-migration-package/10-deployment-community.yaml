@@ -1,0 +1,84 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: community-backend
+  namespace: alphacar-production
+  labels:
+    app: community-backend
+    tier: backend
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: community-backend
+  template:
+    metadata:
+      labels:
+        app: community-backend
+        tier: backend
+    spec:
+      imagePullSecrets:
+        - name: harbor-registry-secret
+      containers:
+      - name: community-backend
+        image: 192.168.0.169/alphacar-project/alphacar-community:1.0.0
+        ports:
+        - containerPort: 3005
+          name: http
+        env:
+        # MariaDB 설정
+        - name: MARIADB_TYPE
+          valueFrom:
+            secretKeyRef:
+              name: mariadb-secret
+              key: type
+        - name: MARIADB_HOST
+          valueFrom:
+            secretKeyRef:
+              name: mariadb-secret
+              key: host
+        - name: MARIADB_PORT
+          valueFrom:
+            secretKeyRef:
+              name: mariadb-secret
+              key: port
+        - name: MARIADB_USERNAME
+          valueFrom:
+            secretKeyRef:
+              name: mariadb-secret
+              key: username
+        - name: MARIADB_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: mariadb-secret
+              key: password
+        - name: MARIADB_DATABASE
+          valueFrom:
+            secretKeyRef:
+              name: mariadb-secret
+              key: database
+        envFrom:
+        - configMapRef:
+            name: common-config
+        - configMapRef:
+            name: community-backend-config
+        resources:
+          requests:
+            memory: "512Mi"
+            cpu: "200m"
+          limits:
+            memory: "1Gi"
+            cpu: "1000m"
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 3005
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 3005
+          initialDelaySeconds: 10
+          periodSeconds: 5
+

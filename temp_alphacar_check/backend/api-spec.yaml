@@ -1,0 +1,963 @@
+openapi: 3.0.3
+info:
+  title: AlphaCar Backend API
+  version: "1.0.0"
+  description: |
+    AlphaCar 백엔드 통합 API 명세서입니다.
+    - 각 서비스는 서로 다른 포트/베이스 URL에서 동작합니다.
+    - 아래 paths는 **서비스 기준 상대 경로**로 정의되어 있습니다.
+servers:
+  - url: http://localhost:3002
+    description: Main Service (메인/차량/찜/최근 본 차량/판매)
+  - url: http://localhost:3003/api
+    description: Quote Service (견적/비교)
+  - url: http://localhost:3006
+    description: Mypage Service (마이페이지/인증)
+  - url: http://localhost:3005
+    description: Community/Search Service
+  - url: http://localhost:4000
+    description: AI Chat Service
+  - url: http://localhost:3002
+    description: Drive Service (동일 포트 사용 시 게이트웨이 기준으로 조정)
+
+tags:
+  - name: Main
+    description: 메인 페이지 및 차량/제조사 정보
+  - name: Vehicles
+    description: 차량 상세 및 최근 본 차량
+  - name: Favorites
+    description: 찜(즐겨찾기)
+  - name: Sales
+    description: 판매량/랭킹
+  - name: Quote
+    description: 견적 상세 및 비교
+  - name: Estimate
+    description: 내 견적 저장/조회/삭제
+  - name: Auth
+    description: 소셜 로그인/인증
+  - name: Mypage
+    description: 마이페이지 정보
+  - name: Community
+    description: 커뮤니티 게시글
+  - name: Search
+    description: 통합 검색
+  - name: Chat
+    description: AI 챗봇 및 지식 관리
+  - name: Drive
+    description: 추천 드라이브 코스
+
+paths:
+  ##################################################
+  # 1. Main 서비스 (포트 3002)
+  ##################################################
+  "/":
+    get:
+      tags: [Main]
+      summary: 헬스 체크
+      description: 서버 동작 여부 확인용 루트 엔드포인트
+      responses:
+        "200":
+          description: 정상 동작 문자열 반환
+          content:
+            text/plain:
+              schema:
+                type: string
+
+  /main:
+    get:
+      tags: [Main]
+      summary: 메인 페이지 데이터 조회
+      description: 배너, 검색바 설정, 차량 목록, 최근 본 차량 ID 목록 등을 포함한 메인 페이지 데이터 반환
+      parameters:
+        - name: userId
+          in: query
+          description: 사용자 ID (없으면 guest_id 로 처리)
+          schema:
+            type: string
+        - name: brand
+          in: query
+          description: 브랜드 필터
+          schema:
+            type: string
+      responses:
+        "200":
+          description: 메인 페이지 데이터
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  welcomeMessage:
+                    type: string
+                  searchBar:
+                    type: object
+                  banners:
+                    type: array
+                    items:
+                      type: object
+                  shortcuts:
+                    type: array
+                    items:
+                      type: string
+                  cars:
+                    type: array
+                    items:
+                      type: object
+                  recentViews:
+                    type: array
+                    items:
+                      type: string
+
+  /cars:
+    get:
+      tags: [Main]
+      summary: 차량 목록 조회
+      parameters:
+        - name: brand
+          in: query
+          required: false
+          description: 브랜드별 필터
+          schema:
+            type: string
+      responses:
+        "200":
+          description: 차량 목록
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+
+  /log-view/{id}:
+    post:
+      tags: [Vehicles]
+      summary: 최근 본 차량 기록
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: 차량 ID
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                userId:
+                  type: string
+                  description: 사용자 ID
+      responses:
+        "200":
+          description: 기록 성공 여부
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  message:
+                    type: string
+
+  /makers:
+    get:
+      tags: [Main]
+      summary: 제조사 목록 조회
+      responses:
+        "200":
+          description: 제조사 목록
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+
+  /brands:
+    get:
+      tags: [Main]
+      summary: 브랜드 목록 조회 (로고 포함)
+      responses:
+        "200":
+          description: 브랜드 목록
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+
+  /makers-with-logo:
+    get:
+      tags: [Main]
+      summary: 제조사 목록 조회 (로고 포함, 프론트 호환용)
+      responses:
+        "200":
+          description: 제조사+로고 목록
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+
+  /models:
+    get:
+      tags: [Main]
+      summary: 모델 목록 조회
+      parameters:
+        - name: makerId
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: 모델 목록
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+
+  /trims:
+    get:
+      tags: [Main]
+      summary: 트림 목록 조회
+      parameters:
+        - name: modelId
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: 트림 목록
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+
+  /review-analysis:
+    get:
+      tags: [Main]
+      summary: 리뷰 분석 데이터 조회
+      parameters:
+        - name: vehicleName
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: 리뷰 분석 결과
+          content:
+            application/json:
+              schema:
+                type: object
+
+  ##################################################
+  # 2. 차량/최근 본 차량/Redis (포트 3002)
+  ##################################################
+  /vehicles/history/count:
+    get:
+      tags: [Vehicles]
+      summary: 최근 본 차량 개수 조회
+      parameters:
+        - name: userId
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: 개수 정보
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  count:
+                    type: integer
+
+  /vehicles/{id}/view:
+    post:
+      tags: [Vehicles]
+      summary: 차량 조회수/최근 본 차량 기록
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                userId:
+                  type: string
+      responses:
+        "200":
+          description: 기록 결과
+          content:
+            application/json:
+              schema:
+                type: object
+
+  /vehicles/detail:
+    get:
+      tags: [Vehicles]
+      summary: 차량 상세 조회 (견적용)
+      parameters:
+        - name: trimId
+          in: query
+          required: true
+          schema:
+            type: string
+        - name: modelName
+          in: query
+          required: false
+          schema:
+            type: string
+      responses:
+        "200":
+          description: 차량 상세 정보
+          content:
+            application/json:
+              schema:
+                type: object
+        "404":
+          description: 트림 ID가 유효하지 않거나 데이터 없음
+
+  /vehicles:
+    get:
+      tags: [Vehicles]
+      summary: 차량 전체 목록 조회
+      responses:
+        "200":
+          description: 차량 목록
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+
+  /vehicles/{id}:
+    get:
+      tags: [Vehicles]
+      summary: 단일 차량 조회
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: 차량 상세 데이터
+          content:
+            application/json:
+              schema:
+                type: object
+
+  /recent-views:
+    get:
+      tags: [Vehicles]
+      summary: 최근 본 차량 목록 조회
+      parameters:
+        - name: userId
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: 최근 본 차량 목록
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+
+  /history:
+    post:
+      tags: [Vehicles]
+      summary: 조회 이력 저장 (Redis)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                userId:
+                  type: string
+                vehicleId:
+                  type: string
+      responses:
+        "200":
+          description: 성공 여부
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+
+  /history/count:
+    get:
+      tags: [Vehicles]
+      summary: 조회 이력 개수 조회 (Redis)
+      parameters:
+        - name: userId
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: 개수 정보
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  count:
+                    type: integer
+
+  ##################################################
+  # 3. Favorites (포트 3002)
+  ##################################################
+  /favorites/toggle:
+    post:
+      tags: [Favorites]
+      summary: 찜 토글
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              description: ToggleFavoriteDto
+      responses:
+        "200":
+          description: 토글 결과
+          content:
+            application/json:
+              schema:
+                type: object
+
+  /favorites/list:
+    get:
+      tags: [Favorites]
+      summary: 찜 목록 조회
+      parameters:
+        - name: userId
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: 찜 목록
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+
+  /favorites/status:
+    get:
+      tags: [Favorites]
+      summary: 특정 차량 찜 상태 조회
+      parameters:
+        - name: userId
+          in: query
+          required: true
+          schema:
+            type: string
+        - name: vehicleId
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: 상태 정보
+          content:
+            application/json:
+              schema:
+                type: object
+
+  ##################################################
+  # 4. Sales (포트 3002)
+  ##################################################
+  /sales/rankings:
+    post:
+      tags: [Sales]
+      summary: 판매 랭킹 데이터 적재
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              description: CreateSalesRankingDto
+      responses:
+        "200":
+          description: 생성 결과
+          content:
+            application/json:
+              schema:
+                type: object
+    get:
+      tags: [Sales]
+      summary: 최신 판매 랭킹 조회
+      responses:
+        "200":
+          description: 최신 랭킹 목록
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+
+  ##################################################
+  # 5. Quote 서비스 (포트 3003, prefix /api)
+  ##################################################
+  /test-log:
+    get:
+      tags: [Quote]
+      summary: Quote 서비스 테스트 로그
+      responses:
+        "200":
+          description: 테스트 메시지
+          content:
+            application/json:
+              schema:
+                type: object
+
+  /vehicles/detail:
+    get:
+      tags: [Quote]
+      summary: 견적용 트림 상세 조회
+      parameters:
+        - name: trimId
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: 트림 상세
+          content:
+            application/json:
+              schema:
+                type: object
+
+  /vehicles/compare-data:
+    get:
+      tags: [Quote]
+      summary: 비교 견적 데이터 조회
+      parameters:
+        - name: ids
+          in: query
+          required: true
+          description: 콤마로 구분된 트림 ID 목록
+          schema:
+            type: string
+      responses:
+        "200":
+          description: 비교 데이터 목록
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+
+  /estimate:
+    post:
+      tags: [Estimate]
+      summary: 견적 저장
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              description: CreateEstimateDto
+      responses:
+        "201":
+          description: 생성된 견적
+          content:
+            application/json:
+              schema:
+                type: object
+
+  /estimate/list:
+    get:
+      tags: [Estimate]
+      summary: 내 견적 목록 조회
+      parameters:
+        - name: userId
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: 견적 목록
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+
+  /estimate/count:
+    get:
+      tags: [Estimate]
+      summary: 내 견적 개수 조회
+      parameters:
+        - name: userId
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: 견적 개수
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  count:
+                    type: integer
+
+  /estimate/{id}:
+    delete:
+      tags: [Estimate]
+      summary: 견적 삭제
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: 삭제 결과
+          content:
+            application/json:
+              schema:
+                type: object
+        "404":
+          description: 견적 ID를 찾을 수 없음
+
+  ##################################################
+  # 6. Auth / Mypage 서비스 (포트 3006)
+  ##################################################
+  /auth/kakao:
+    get:
+      tags: [Auth]
+      summary: 카카오 로그인 시작
+      responses:
+        "302":
+          description: 카카오 OAuth 페이지로 리다이렉트
+
+  /auth/kakao-login:
+    post:
+      tags: [Auth]
+      summary: 카카오 로그인 콜백 처리
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                code:
+                  type: string
+      responses:
+        "200":
+          description: 로그인 결과
+          content:
+            application/json:
+              schema:
+                type: object
+
+  /auth/google-login:
+    post:
+      tags: [Auth]
+      summary: 구글 로그인 처리
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                code:
+                  type: string
+      responses:
+        "200":
+          description: 로그인 결과
+          content:
+            application/json:
+              schema:
+                type: object
+
+  /mypage:
+    get:
+      tags: [Mypage]
+      summary: 마이페이지 정보 조회
+      parameters:
+        - name: Authorization
+          in: header
+          required: false
+          description: Bearer {socialId} (MockAuth 토큰)
+          schema:
+            type: string
+      responses:
+        "200":
+          description: 로그인 여부 및 사용자 정보
+          content:
+            application/json:
+              schema:
+                type: object
+
+  ##################################################
+  # 7. Community / Search 서비스 (포트 3005)
+  ##################################################
+  /community:
+    get:
+      tags: [Community]
+      summary: 커뮤니티 게시글 목록 조회
+      responses:
+        "200":
+          description: 게시글 목록
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                  posts:
+                    type: array
+                    items:
+                      type: object
+
+  /community/write:
+    post:
+      tags: [Community]
+      summary: 커뮤니티 글 작성
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                userId:
+                  type: string
+                category:
+                  type: string
+                title:
+                  type: string
+                content:
+                  type: string
+                author:
+                  type: string
+      responses:
+        "200":
+          description: 생성 결과
+          content:
+            application/json:
+              schema:
+                type: object
+
+  /search:
+    get:
+      tags: [Search]
+      summary: 통합 검색
+      parameters:
+        - name: keyword
+          in: query
+          required: false
+          schema:
+            type: string
+      responses:
+        "200":
+          description: 검색 결과
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  keyword:
+                    type: string
+                  result:
+                    type: object
+
+  ##################################################
+  # 8. AI Chat 서비스 (포트 4000)
+  ##################################################
+  /aichat:
+    post:
+      tags: [Chat]
+      summary: 간단 텍스트 챗봇
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                message:
+                  type: string
+      responses:
+        "200":
+          description: 챗봇 응답
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  reply:
+                    type: string
+                  timestamp:
+                    type: string
+                    format: date-time
+
+  /chat/ask:
+    post:
+      tags: [Chat]
+      summary: 텍스트 질문 챗봇
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                message:
+                  type: string
+      responses:
+        "200":
+          description: 답변
+          content:
+            application/json:
+              schema:
+                type: object
+
+  /chat/image:
+    post:
+      tags: [Chat]
+      summary: 이미지 업로드 및 분석
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                file:
+                  type: string
+                  format: binary
+      responses:
+        "200":
+          description: 분석 결과
+          content:
+            application/json:
+              schema:
+                type: object
+        "422":
+          description: 파일 형식/용량 오류
+
+  /chat/knowledge:
+    post:
+      tags: [Chat]
+      summary: 지식 추가
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                content:
+                  type: string
+                source:
+                  type: string
+      responses:
+        "200":
+          description: 추가 결과
+          content:
+            application/json:
+              schema:
+                type: object
+
+  ##################################################
+  # 9. Drive 서비스 (포트 3002 or 별도)
+  ##################################################
+  /drive:
+    get:
+      tags: [Drive]
+      summary: 드라이브 코스 목록 조회
+      responses:
+        "200":
+          description: 코스 목록
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                  courses:
+                    type: array
+                    items:
+                      type: object
+
+  /drive/{id}:
+    get:
+      tags: [Drive]
+      summary: 특정 드라이브 코스 상세 조회
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: 코스 상세
+          content:
+            application/json:
+              schema:
+                type: object
+
+
+
