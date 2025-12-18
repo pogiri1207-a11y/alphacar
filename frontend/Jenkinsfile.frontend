@@ -142,16 +142,26 @@ pipeline {
 
                     echo "🐳 Docker Build: ${imageTag}"
                     
-                    // 캐시 이미지 pull 시도
-                    sh "docker pull ${imageTagLatest} || true"
-                    
-                    // 빌드 (캐시 사용) - Harbor URL에서 http:// 제거
                     def imageTagNoHttp = "192.168.56.200:30002/${HARBOR_PROJECT}/${IMAGE_NAME}:${env.FULL_VERSION}"
                     def imageTagLatestNoHttp = "192.168.56.200:30002/${HARBOR_PROJECT}/${IMAGE_NAME}:latest"
                     
+                    // BuildKit 활성화 및 캐시 이미지 pull
                     sh """
+                        export DOCKER_BUILDKIT=1
+                        docker pull ${imageTagLatestNoHttp} || true
+                        
+                        # BuildKit을 사용한 빠른 빌드
+                        docker buildx build \\
+                            --cache-from type=registry,ref=${imageTagLatestNoHttp} \\
+                            --cache-to type=inline \\
+                            --load \\
+                            -f frontend/Dockerfile \\
+                            -t ${imageTagNoHttp} \\
+                            -t ${imageTagLatestNoHttp} \\
+                            frontend/ || \\
+                        # buildx 실패 시 일반 빌드로 fallback
                         docker build \\
-                            --cache-from ${imageTagLatest} \\
+                            --cache-from ${imageTagLatestNoHttp} \\
                             -f frontend/Dockerfile \\
                             -t ${imageTagNoHttp} \\
                             -t ${imageTagLatestNoHttp} \\
