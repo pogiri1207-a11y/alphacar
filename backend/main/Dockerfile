@@ -10,8 +10,9 @@ WORKDIR /app
 RUN apk add --no-cache libc6-compat
 
 # 1-2. 패키지 파일 복사 (의존성 캐시 최적화)
+# (빌드 컨텍스트가 backend/ 이므로 해당 경로 기준)
 COPY package.json package-lock.json ./
-COPY ${APP_NAME}/package.json ${APP_NAME}/ || true
+COPY ${APP_NAME}/package.json ${APP_NAME}/
 
 # 1-3. 의존성 설치 (CI 모드: 빠르고 정확함)
 # 이때는 빌드를 위해 devDependencies(NestCLI 등)가 모두 설치됩니다.
@@ -31,17 +32,13 @@ RUN if [ -f ${APP_NAME}/instrumentation.ts ]; then \
         sed -i '/traceExporter:/i \        // @ts-ignore' ${APP_NAME}/instrumentation.ts; \
     fi
 
-# 1-6. 빌드 실행 (메모리 제한, 타임아웃, 상세 로그)
-RUN echo "🚀 Starting nest build for ${APP_NAME}..." && \
-    cd ${APP_NAME} && \
-    NODE_OPTIONS="--max-old-space-size=4096" nest build --verbose 2>&1 | tee /tmp/build.log && \
-    echo "✅ Build completed successfully" && \
-    ls -la dist/ || (echo "❌ Build failed, showing logs:" && cat /tmp/build.log && exit 1)
+# 1-6. 빌드 실행 -> dist 폴더 생성
+RUN cd ${APP_NAME} && nest build
 
 # 🔥 [다이어트 핵심] 빌드 완료 후, 실행에 필요 없는 '개발용 패키지' 제거
 # 이 명령어가 실행되면 node_modules 크기가 확 줄어듭니다.
 RUN npm prune --production
-RUN cd ${APP_NAME} && npm prune --production || true
+RUN cd ${APP_NAME} && npm prune --production
 
 # ---------------------------------------------------
 # 2. 실행 단계 (Runner) - 초경량화
@@ -56,7 +53,7 @@ ENV NODE_ENV=production
 # 대신 Builder에서 이미 정리된 node_modules를 복사해옵니다. ✅
 COPY --from=builder /app/node_modules ./node_modules
 # 앱 내부에 별도 node_modules가 생성된 경우를 대비해 복사 (없으면 무시됨)
-COPY --from=builder /app/${APP_NAME}/node_modules ./${APP_NAME}/node_modules || true
+COPY --from=builder /app/${APP_NAME}/node_modules ./${APP_NAME}/node_modules
 
 # 2-2. 실행 파일(dist)과 설정 파일(package.json) 한 번에 복사
 # 레이어를 줄이기 위해 한 줄로 처리
