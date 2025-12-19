@@ -1,0 +1,253 @@
+// app/components/GlobalHeader.js
+"use client";
+
+import Link from "next/link";
+import { useState } from "react";
+
+export default function GlobalHeader() {
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
+
+  const toggleMenu = () => setIsMenuOpen((prev) => !prev);
+
+  return (
+    <>
+      {/* 🔹 최상단 로그인 라인 */}
+      <div
+        style={{
+          borderBottom: "1px solid #f2f2f2",
+          padding: "6px 32px",
+          fontSize: "12px",
+          color: "#666",
+          display: "flex",
+          justifyContent: "flex-end",
+          gap: "12px",
+          backgroundColor: "#ffffff",
+        }}
+      >
+        <Link href="/login">로그인</Link>
+        <span style={{ color: "#ddd" }}>|</span>
+        <Link href="/signup">회원가입</Link>
+      </div>
+
+      {/* 🔹 메인 GNB 라인 (로고 + 메뉴 + 전체메뉴 버튼) */}
+      <div
+        style={{
+          borderBottom: "1px solid #e5e7eb",
+          padding: "14px 32px",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          backgroundColor: "#ffffff",
+          position: "relative",
+          zIndex: 20,
+        }}
+      >
+        {/* 왼쪽: 로고 + 메인 메뉴 */}
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: "28px",
+          }}
+        >
+          {/* 로고 */}
+          <Link
+            href="/"
+            style={{ textDecoration: "none", color: "#111827" }}
+          >
+            <span
+              style={{
+                fontSize: "22px",
+                fontWeight: 800,
+                letterSpacing: "1px",
+              }}
+            >
+              ALPHACAR
+            </span>
+          </Link>
+
+          {/* 메인 메뉴 */}
+          <nav
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: "20px",
+              fontSize: "14px",
+              color: "#222",
+            }}
+          >
+            <Link href="/quote">견적 비교</Link>
+            <Link href="/news">소식</Link>
+            <Link href="/community">커뮤니티</Link>
+          </nav>
+        </div>
+
+        {/* 오른쪽: 전체메뉴 버튼 (≡ <-> ✕) */}
+        <button
+          type="button"
+          onClick={toggleMenu}
+          style={{
+            border: "none",
+            background: "transparent",
+            display: "flex",
+            alignItems: "center",
+            gap: "6px",
+            cursor: "pointer",
+            fontSize: "14px",
+            color: "#0070f3",
+          }}
+        >
+          <span>전체메뉴</span>
+          <span
+            style={{
+              fontSize: "20px",
+              lineHeight: 1,
+              color: "#111",
+            }}
+          >
+            {isMenuOpen ? "✕" : "≡"}
+          </span>
+        </button>
+      </div>
+
+      {/* 🔹 전체메뉴 펼침 영역 (리본카 스타일 메가 메뉴 느낌) */}
+      {isMenuOpen && (
+        <div
+          style={{
+            width: "100%",
+            borderBottom: "1px solid #e5e7eb",
+            backgroundColor: "#ffffff",
+            boxShadow: "0 8px 24px rgba(0,0,0,0.04)",
+            position: "relative",
+            zIndex: 10,
+          }}
+        >
+          <div
+            style={{
+              maxWidth: "1200px",
+              margin: "0 auto",
+              padding: "24px 32px 32px",
+              display: "grid",
+              gridTemplateColumns: "repeat(4, minmax(0, 1fr))",
+              gap: "32px",
+              fontSize: "14px",
+            }}
+          >
+            {/* 견적 비교 */}
+            <MenuColumn
+              title="견적 비교"
+              items={[
+                { label: "비교견적", href: "/quote" },
+                { label: "개별견적", href: "/quote/personal" },
+              ]}
+            />
+
+            {/* 소식 */}
+            <MenuColumn
+              title="소식"
+              items={[
+                { label: "핫이슈", href: "/news/hot" },
+                { label: "내차와의 데이터", href: "/news/data" },
+                { label: "시승기", href: "/news/review" },
+                { label: "시승 신청하기", href: "/news/test-drive" },
+              ]}
+            />
+
+            {/* 커뮤니티 */}
+            <MenuColumn
+              title="커뮤니티"
+              items={[
+                { label: "구매 고민", href: "/community/buy" },
+                { label: "오너리뷰", href: "/community/review" },
+              ]}
+            />
+
+            {/* 마이페이지 / 로그인 안내 */}
+            <div>
+              <div
+                style={{
+                  fontSize: "15px",
+                  fontWeight: 700,
+                  marginBottom: "8px",
+                }}
+              >
+                마이페이지
+              </div>
+              <div
+                style={{
+                  height: "2px",
+                  backgroundColor: "#e5e7eb",
+                  marginBottom: "12px",
+                }}
+              />
+              <div
+                style={{
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: "6px",
+                }}
+              >
+                {/* 나중에 로그인 상태에 따라 분기 처리 가능 */}
+                <span style={{ fontSize: "13px", color: "#999" }}>
+                  로그인 해주세요
+                </span>
+                <Link
+                  href="/mypage"
+                  style={{ color: "#0070f3", fontSize: "13px" }}
+                >
+                  마이페이지 바로가기
+                </Link>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
+  );
+}
+
+/** 공통 컬럼 컴포넌트 */
+function MenuColumn({ title, items }) {
+  return (
+    <div>
+      <div
+        style={{
+          fontSize: "15px",
+          fontWeight: 700,
+          marginBottom: "8px",
+        }}
+      >
+        {title}
+      </div>
+      <div
+        style={{
+          height: "2px",
+          backgroundColor: "#e5e7eb",
+          marginBottom: "12px",
+        }}
+      />
+      <div
+        style={{
+          display: "flex",
+          flexDirection: "column",
+          gap: "6px",
+        }}
+      >
+        {items.map((item) => (
+          <Link
+            key={item.label}
+            href={item.href}
+            style={{
+              textDecoration: "none",
+              color: "#444",
+              fontSize: "13px",
+            }}
+          >
+            {item.label}
+          </Link>
+        ))}
+      </div>
+    </div>
+  );
+}
+

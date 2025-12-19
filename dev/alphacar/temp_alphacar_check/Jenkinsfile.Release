@@ -1,0 +1,99 @@
+cat <<EOF > Jenkinsfile.Release
+pipeline {
+:%s@sh "echo \\$PASS | docker login \\$\\{REGISTRY_HOST\\} -u \\$USER --password-stdin"@sh 'echo "$PASS" | docker login ' + "${env.REGISTRY_HOST}" + ' -u $USER --password-stdin'@g
+
+    agent any
+
+    environment {
+        // Git 커밋 해시(짧은 버전)를 이미지 태그로 사용
+        IMAGE_TAG = sh(returnStdout: true, script: 'git rev-parse --short HEAD').trim()
+        
+        // 1. 레지스트리 주소 (로그인용) - 프로젝트 이름 뺌!
+        REGISTRY_HOST = '192.168.0.169'
+        
+        // 2. 프로젝트 이름 (이미지 경로용) - 새로 추가!
+        HARBOR_PROJECT = 'alphacar-project'
+        
+        // 3. 실제 배포할 서버 IP (웹 서버) - 169(하버)가 아니라 160(서버)이어야 함!
+        DEPLOY_SERVER_IP = '192.168.0.160' 
+
+        // 젠킨스 자격증명 ID
+        DOCKER_CRED_ID = 'harbor-cred' 
+        SSH_CRED_ID = 'ssh-deploy-server'
+    }
+
+    stages {
+        stage('Initialize') {
+            steps {
+                echo "Deploying version: \${IMAGE_TAG}"
+                sh 'docker system prune -f'
+            }
+        }
+
+        stage('Login to Registry') {
+            steps {
+                script {
+                    withCredentials([usernamePassword(credentialsId: DOCKER_CRED_ID, usernameVariable: 'USER', passwordVariable: 'PASS')]) {
+                        // 수정됨: IP만 가지고 로그인 (성공!)
+                        sh "echo \$PASS | docker login \${REGISTRY_HOST} -u \$USER --password-stdin"
+                    }
+                }
+            }
+        }
+
+        stage('Build & Push Frontend') {
+            steps {
+                script {
+                    // 수정됨: IP + 프로젝트명 + 이미지명 조합
+                    def imgName = "\${REGISTRY_HOST}/\${HARBOR_PROJECT}/alphacar-frontend:\${IMAGE_TAG}"
+                    echo "Building Frontend: \${imgName}"
+                    
+                    sh "docker build -t \${imgName} -f frontend/Dockerfile frontend/"
+                    sh "docker push \${imgName}"
+                }
+            }
+        }
+
+        stage('Build & Push Backend Services') {
+            steps {
+                script {
+                    def services = ['main', 'quote', 'search', 'mypage', 'community', 'aichat', 'drive']
+                    
+                    services.each { service ->
+                        // 수정됨: IP + 프로젝트명 + 이미지명 조합
+                        def imgName = "\${REGISTRY_HOST}/\${HARBOR_PROJECT}/alphacar-\${service}:\${IMAGE_TAG}"
+                        echo "Building Backend [\${service}]: \${imgName}"
+                        
+                        sh "docker build --build-arg APP_NAME=\${service} -t \${imgName} -f backend/Dockerfile backend/"
+                        sh "docker push \${imgName}"
+                    }
+                }
+            }
+        }
+
+        stage('Deploy to Server') {
+            steps {
+                sshagent(credentials: ["\${SSH_CRED_ID}"]) {
+                    // 수정됨: DEPLOY_SERVER_IP (192.168.0.160)으로 접속하도록 변경
+                    sh """
+                        ssh -o StrictHostKeyChecking=no kevin@\${DEPLOY_SERVER_IP} '
+                            cd ~/alphacar/deploy &&
+                            export FRONTEND_VERSION=\${IMAGE_TAG} &&
+                            export BACKEND_VERSION=\${IMAGE_TAG} &&
+                            
+                            docker compose pull &&
+                            docker compose up -d --remove-orphans
+                        '
+                    """
+                }
+            }
+        }
+        
+        stage('Cleanup End') {
+            steps {
+                sh 'docker system prune -f'
+            }
+        }
+    }
+}
+EOF

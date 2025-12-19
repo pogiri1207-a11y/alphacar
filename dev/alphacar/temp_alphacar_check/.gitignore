@@ -1,0 +1,29 @@
+# Jenkins data
+cicd/jenkins_home/
+
+# SonarQube, Trivy, Harbor runtime data
+cicd/sonarqube_data/
+cicd/sonarqube_logs/
+cicd/sonarqube_extensions/
+cicd/postgres_data/
+cicd/trivy/
+
+
+cicd/jenkins_home/
+cicd/sonar_data/
+cicd/sonar_extensions/
+
+# Git에 올라가면 안 되는 파일들
+.env
+*.env
+backend/.env
+backend/*/.env
+node_modules/
+dist/
+log/
+deploy/.env
+
+# 대용량 파일 무시 (ngrinder 경고 해결)
+ngringer/
+*.tar
+*.gz

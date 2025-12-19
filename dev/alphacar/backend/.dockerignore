@@ -1,0 +1,28 @@
+# .dockerignore
+
+# 1. 의존성 폴더 (가장 중요! 로컬 node_modules를 무시해야 함)
+node_modules/
+*/node_modules/
+
+# 2. 빌드 결과물 (로컬에서 빌드한 dist 무시)
+dist/
+*/dist/
+
+# 3. 깃 관련 파일
+.git/
+.gitignore
+
+# 4. 도커 관련
+Dockerfile
+.dockerignore
+
+# 5. IDE 설정 및 로그, 기타 잡동사니
+.vscode/
+.idea/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.DS_Store
+coverage/
+test/

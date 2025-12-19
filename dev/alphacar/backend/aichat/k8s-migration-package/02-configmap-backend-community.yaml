@@ -1,0 +1,9 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: community-backend-config
+  namespace: alphacar-production
+data:
+  PORT: "3005"
+  SERVICE_NAME: "community-backend"
+

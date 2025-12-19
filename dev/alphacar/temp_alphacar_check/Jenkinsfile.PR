@@ -1,0 +1,60 @@
+pipeline {
+    agent any
+
+    stages {
+        stage('Cleanup Start') {
+            steps {
+                sh 'docker system prune -f'
+            }
+        }
+
+        stage('Checkout & Detect Changes') {
+            steps {
+                checkout scm
+                script {
+                    // 변경된 파일 목록 감지
+                    env.CHANGED_FILES = sh(returnStdout: true, script: 'git diff --name-only HEAD origin/main | tr "\\n" " "')
+                }
+            }
+        }
+
+        stage('Frontend Test') {
+            when { expression { env.CHANGED_FILES.contains('frontend/') } }
+            steps {
+                echo "Frontend 변경 감지! 빌드 테스트..."
+                // frontend 폴더 안에 Dockerfile이 있으므로 바로 빌드 테스트
+                sh 'docker build -t frontend-test -f frontend/Dockerfile frontend/'
+            }
+        }
+
+        stage('Backend Test') {
+            steps {
+                script {
+                    // NestJS 모노레포 서비스 목록
+                    def services = ['main', 'quote', 'search', 'mypage', 'community', 'aichat', 'drive']
+                    
+                    services.each { service ->
+                        // 1. backend/libs (공통 모듈)이나 backend/Dockerfile이 바뀌면 전체 다시 테스트
+                        // 2. 또는 특정 서비스 폴더(backend/main 등)가 바뀌면 해당 서비스 테스트
+                        if (env.CHANGED_FILES.contains("backend/libs/") || 
+                            env.CHANGED_FILES.contains("backend/Dockerfile") || 
+                            env.CHANGED_FILES.contains("backend/${service}/")) {
+                            
+                            echo "Backend Service [${service}] 변경 감지! 빌드 테스트..."
+                            
+                            // 중요: backend/Dockerfile 하나로 APP_NAME만 바꿔가며 빌드하는 방식
+                            // 컨텍스트는 backend/ 폴더 전체여야 함
+                            sh "docker build --build-arg APP_NAME=${service} -t backend-${service}-test -f backend/Dockerfile backend/"
+                        }
+                    }
+                }
+            }
+        }
+
+        stage('Cleanup End') {
+            steps {
+                sh 'docker system prune -f'
+            }
+        }
+    }
+}

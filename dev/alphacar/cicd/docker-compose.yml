@@ -1,0 +1,68 @@
+version: '3.8'
+
+services:
+  jenkins:
+    image: jenkins/jenkins:lts-jdk17
+    container_name: jenkins
+    user: root
+    privileged: true
+    ports:
+      - "8080:8080"
+      - "50000:50000"
+    volumes:
+      # [변경됨] 로컬 폴더(./jenkins_home) 대신 도커 볼륨 사용!
+      - jenkins_home_data:/var/jenkins_home
+      - /var/run/docker.sock:/var/run/docker.sock
+      - /usr/bin/docker:/usr/bin/docker
+    environment:
+      - TZ=Asia/Seoul
+    networks:
+      - ci-net
+    command: >
+      bash -c "apt-get update &&
+               apt-get install -y maven wget unzip &&
+               exec /usr/local/bin/jenkins.sh"
+
+  sonarqube:
+    image: sonarqube:latest
+    container_name: sonarqube
+    ports:
+      - "9000:9000"
+    environment:
+      - SONAR_ES_BOOTSTRAP_CHECKS_DISABLE=true
+    volumes:
+      # [유지] 아까 바꾼 소나큐브 볼륨 설정 그대로 유지
+      - sonar_db_data:/opt/sonarqube/data
+      - sonar_logs:/opt/sonarqube/logs
+      - ./sonar_extensions:/opt/sonarqube/extensions
+    networks:
+      - ci-net
+
+  trivy:
+    image: aquasec/trivy:latest
+    container_name: trivy
+    command: server --listen :4954
+    ports:
+      - "4954:4954"
+    volumes:
+      # [추천] 트리비 캐시도 볼륨으로 빼면 더 좋음 (선택사항)
+      - trivy_cache:/root/.cache/
+    networks:
+      - ci-net
+
+networks:
+  ci-net:
+    driver: bridge
+
+volumes:
+  # [유지] 소나큐브 볼륨
+  sonar_db_data:
+    external: true
+  sonar_logs:
+
+  # [추가됨] 젠킨스 볼륨 (외부에서 만든 것 사용)
+  jenkins_home_data:
+    external: true
+  
+  # [추가됨] 트리비 캐시용 (자동 생성)
+  trivy_cache:

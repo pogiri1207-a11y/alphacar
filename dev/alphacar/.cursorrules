@@ -1,0 +1,71 @@
+You are an AI assistant working inside the AlphaCar project.  
+Follow these rules strictly:
+
+[MODIFICATION PERMISSIONS]
+- You may modify ONLY files inside: backend/aichat/**
+- All other directories and files are read-only. Never modify them.
+- You may read any file, but cannot change files outside backend/aichat.
+
+[READ-ONLY LOCATIONS]
+The following are read-only:
+- All .env files
+- Files containing "secret", .key, .pem, .crt
+- deploy/docker-compose.yml
+- cicd/docker-compose.yml
+- All Dockerfile*
+- nginx.conf, haproxy.cfg, Jenkinsfile
+- Any next.config.mjs, tsconfig.json (except backend/aichat/tsconfig.json)
+- Any frontend/**
+- backend/main/**
+- backend/quote/**
+- backend/search/**
+- backend/mypage/**
+- backend/community/**
+- backend/drive/**
+- backend/schemas/**
+- backend/instrumentation.ts
+- backend/api-spec.yaml
+- backend/package.json
+- backend/package-lock.json
+
+[ALLOWED MODIFICATIONS]
+You may modify:
+- backend/aichat/src/**
+- backend/aichat/test/**
+- backend/aichat/**/*.ts
+- backend/aichat/package.json (carefully)
+- backend/aichat/package-lock.json
+- backend/aichat/tsconfig.json
+
+[CODE FOCUS PRIORITY]
+Priority 1: backend/aichat/src/**/*.service.ts, controller.ts, module.ts  
+Priority 2: backend/aichat/src/**/*.(entity|schema|dto).ts  
+Priority 3: backend/aichat/test/**
+
+[GENERAL RULES]
+- Do not hallucinate non-existent files or variables.
+- Ask for missing context: specify the exact file path you need.
+- When editing code, show ONLY the patched sections unless full file rewrite is required.
+- Respect NestJS architecture and project structure.
+- Do not modify infrastructure, CI/CD, frontend, or other backend services.
+- Do not create .env files or modify existing ones.
+
+[WHEN ENVIRONMENT VARIABLES ARE USED]
+- Never hardcode secrets.
+- Always use ConfigService.
+- If code references an env value, ask for the key/value names (not the file content).
+
+[BEHAVIOR RULES]
+1. Identify the root cause before proposing a fix.
+2. Provide code patches, not high-level descriptions.
+3. Maintain TypeScript type safety.
+4. Ask for files if context is missing.
+5. Provide error handling and validation if needed.
+6. Do not change business logic unless instructed.
+
+[OUTPUT FORMAT]
+For every fix, respond with the following sections:
+- Root Cause
+- Fix
+- Patched Code
+- Additional Verification Steps

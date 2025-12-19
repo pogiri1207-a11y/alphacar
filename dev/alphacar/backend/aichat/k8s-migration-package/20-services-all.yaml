@@ -1,0 +1,137 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: frontend-service
+  namespace: alphacar-production
+  labels:
+    app: frontend
+spec:
+  selector:
+    app: frontend
+  ports:
+  - port: 80
+    targetPort: 8000
+    protocol: TCP
+    name: http
+  type: ClusterIP
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: main-service
+  namespace: alphacar-production
+  labels:
+    app: main-backend
+spec:
+  selector:
+    app: main-backend
+  ports:
+  - port: 80
+    targetPort: 3002
+    protocol: TCP
+    name: http
+  type: ClusterIP
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: quote-service
+  namespace: alphacar-production
+  labels:
+    app: quote-backend
+spec:
+  selector:
+    app: quote-backend
+  ports:
+  - port: 80
+    targetPort: 3003
+    protocol: TCP
+    name: http
+  type: ClusterIP
+  # 로드 밸런싱: 3개 replica 자동 분산
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: search-service
+  namespace: alphacar-production
+  labels:
+    app: search-backend
+spec:
+  selector:
+    app: search-backend
+  ports:
+  - port: 80
+    targetPort: 3007
+    protocol: TCP
+    name: http
+  type: ClusterIP
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: mypage-service
+  namespace: alphacar-production
+  labels:
+    app: mypage-backend
+spec:
+  selector:
+    app: mypage-backend
+  ports:
+  - port: 80
+    targetPort: 3006
+    protocol: TCP
+    name: http
+  type: ClusterIP
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: community-service
+  namespace: alphacar-production
+  labels:
+    app: community-backend
+spec:
+  selector:
+    app: community-backend
+  ports:
+  - port: 80
+    targetPort: 3005
+    protocol: TCP
+    name: http
+  type: ClusterIP
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: aichat-service
+  namespace: alphacar-production
+  labels:
+    app: aichat-backend
+spec:
+  selector:
+    app: aichat-backend
+  ports:
+  - port: 80
+    targetPort: 4000
+    protocol: TCP
+    name: http
+  type: ClusterIP
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: drive-service
+  namespace: alphacar-production
+  labels:
+    app: drive-backend
+spec:
+  selector:
+    app: drive-backend
+  ports:
+  - port: 80
+    targetPort: 3008
+    protocol: TCP
+    name: http
+  type: ClusterIP
+

@@ -1,0 +1,398 @@
+# [변경 1] 네트워크 분리 선언
+networks:
+  front-net:
+    driver: bridge
+  back-net:
+    driver: bridge
+
+services:
+  # [Alloy] - Observability Agent
+  alloy-agent:
+    image: grafana/alloy:latest
+    container_name: alloy_agent
+    restart: always
+    volumes:
+      - /var/lib/docker/containers:/mnt/containers:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ./config/alloy/config.alloy:/etc/alloy/config.alloy:ro
+    ports:
+      - "4317:4317"
+      - "4318:4318"
+      - "12345:12345"
+    command: [
+      "run",
+      "--server.http.listen-addr=0.0.0.0:12345",
+      "--storage.path=/var/lib/alloy/data",
+      "/etc/alloy/config.alloy"
+    ]
+    networks:
+      - back-net
+
+  # [Traefik] - Gateway (보안 방어선 구축)
+  traefik:
+    image: traefik:3.6
+    container_name: traefik
+    restart: always
+    environment:
+      - DOCKER_API_VERSION=${DOCKER_API_VERSION}
+    # ✅ [절충 1] 게이트웨이 자원 제한 조정
+    ulimits:
+      nofile:
+        soft: 32768
+        hard: 32768
+    command:
+      - "--providers.docker=true"
+      - "--providers.docker.exposedbydefault=false"
+      - "--providers.docker.network=back-net"
+      - "--entrypoints.web.address=:9090"
+      - "--api.insecure=true"
+      - "--log.level=DEBUG"
+      - "--accesslog=true"
+      # ❌ [삭제] 여기 있던 미들웨어 설정은 labels로 이동해야 함
+    labels:
+      # ✅ [추가] Traefik 자신을 활성화 (미들웨어 제공자 역할)
+      - "traefik.enable=true"
+      - "traefik.docker.network=back-net"
+      # ✅ [절충 2] Rate Limit 미들웨어 정의 (여기서 정의하고 다른 애들이 갖다 씀)
+      # 이름: limit-req, 평균: 2000, 버스트: 3000
+      - "traefik.http.middlewares.limit-req.ratelimit.average=2000"
+      - "traefik.http.middlewares.limit-req.ratelimit.burst=3000"
+    ports:
+      - "9090:9090"
+      - "${TRAEFIK_DASHBOARD_PORT}:8080"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    networks:
+      - front-net
+      - back-net
+
+  # [Nginx] - Proxy / Entry
+  nginx:
+    image: 192.168.0.169/alphacar-project/alphacar-nginx:${FRONTEND_VERSION:-1.0.0}
+    container_name: nginx
+    restart: always
+    ulimits:
+      nofile:
+        soft: 32768
+        hard: 32768
+    ports:
+      - "80:80"
+      - "443:443"
+      - "8000:8000"
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+      - /etc/nginx/ssl:/etc/nginx/ssl:ro
+    depends_on:
+      - frontend
+      - traefik
+    networks:
+      - front-net
+
+  # [Frontend]
+  frontend:
+    image: 192.168.0.169/alphacar-project/alphacar-frontend:1.0.0.77
+    container_name: frontend
+    restart: always
+    ulimits:
+      nofile:
+        soft: 32768
+        hard: 32768
+    environment:
+      - API_URL=https://${NIP_DOMAIN}/api
+      - PORT=8000
+      - NEXT_PUBLIC_BASE_URL=https://${NIP_DOMAIN}
+      - NEXT_PUBLIC_DOMAIN=https://${NIP_DOMAIN}
+      - NODE_EXTRA_CA_CERTS=/etc/ssl/certs/selfsigned.crt
+    expose:
+      - "8000"
+    volumes:
+      - /etc/nginx/ssl/selfsigned.crt:/etc/ssl/certs/selfsigned.crt:ro
+    networks:
+      - front-net
+
+  # =========================================================
+  # [Backend Services]
+  # limit-req@docker 로 수정하여 Traefik에 정의된 미들웨어를 참조
+  # =========================================================
+
+  # [Main Backend]
+  main-backend:
+    image: 192.168.0.169/alphacar-project/alphacar-main:${BACKEND_VERSION:-1.0.0}
+    container_name: main_backend
+    restart: always
+    ulimits:
+      nofile:
+        soft: 32768
+        hard: 32768
+    networks:
+      - back-net
+    environment:
+      - PORT=3002
+      - SERVICE_NAME=main-backend
+      - OTEL_EXPORTER_OTLP_ENDPOINT=${OTEL_EXPORTER_OTLP_ENDPOINT}
+      - OTEL_LOG_LEVEL=debug
+      - OTEL_DIAG_LEVEL=debug
+      - DATABASE_HOST=${MONGO_HOST}
+      - DATABASE_PORT=${MONGO_PORT}
+      - DATABASE_USER=${MONGO_USER}
+      - DATABASE_PASSWORD=${MONGO_PASS}
+      - DATABASE_NAME=${MONGO_DB_NAME}
+      - REDIS_HOST=${REDIS_HOST}
+      - REDIS_PORT=${REDIS_PORT}
+      - JWT_SECRET=${JWT_SECRET}
+    extra_hosts:
+      - "mongodb_primary:${MONGO_HOST}"
+      - "mongodb_secondary_1:${MONGO_HOST}"
+      - "mongodb_secondary_2:${MONGO_HOST}"
+      - "mongodb-primary:${MONGO_HOST}"
+      - "mongodb-secondary-1:${MONGO_HOST}"
+      - "mongodb-secondary-2:${MONGO_HOST}"
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=back-net"
+      - "traefik.http.services.main.loadbalancer.server.port=3002"
+      - "traefik.http.middlewares.strip-api.stripprefix.prefixes=/api"
+      - "traefik.http.routers.main.priority=60"
+      - "traefik.http.routers.main.rule=PathPrefix(`/api/main`) || PathPrefix(`/api/history`) || PathPrefix(`/api/recent-views`) || PathPrefix(`/api/sales`) || PathPrefix(`/api/brands`) || PathPrefix(`/api/favorites`) || PathPrefix(`/api/log-view`) || PathPrefix(`/api/cars`) || PathPrefix(`/api/review-analysis`)"
+      - "traefik.http.routers.main.entrypoints=web"
+      - "traefik.http.routers.main.middlewares=strip-api"
+      - "traefik.http.routers.main-detail.rule=PathPrefix(`/api/vehicles/detail`)"
+      - "traefik.http.routers.main-detail.entrypoints=web"
+      - "traefik.http.routers.main-detail.priority=100"
+      - "traefik.http.routers.main-detail.middlewares=strip-api"
+
+  # [Quote Backend]
+  quote-backend:
+    image: 192.168.0.169/alphacar-project/alphacar-quote:1.0.0.82
+    container_name: quote-backend
+    restart: always
+    ulimits:
+      nofile:
+        soft: 32768
+        hard: 32768
+    networks:
+      - back-net
+    environment:
+      - PORT=3003
+      - SERVICE_NAME=quote-backend
+      - OTEL_EXPORTER_OTLP_ENDPOINT=${OTEL_EXPORTER_OTLP_ENDPOINT}
+      - DATABASE_HOST=${MONGO_HOST}
+      - DATABASE_PORT=${MONGO_PORT}
+      - DATABASE_USER=${MONGO_USER}
+      - DATABASE_PASSWORD=${MONGO_PASS}
+      - DATABASE_NAME=${MONGO_DB_NAME}
+      - JWT_SECRET=${JWT_SECRET}
+    extra_hosts:
+      - "mongodb_primary:${MONGO_HOST}"
+      - "mongodb_secondary_1:${MONGO_HOST}"
+      - "mongodb_secondary_2:${MONGO_HOST}"
+      - "mongodb-primary:${MONGO_HOST}"
+      - "mongodb-secondary-1:${MONGO_HOST}"
+      - "mongodb-secondary-2:${MONGO_HOST}"
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=back-net"
+      - "traefik.http.services.quote.loadbalancer.server.port=3003"
+      - "traefik.http.routers.quote.rule=PathPrefix(`/api/vehicles`) || PathPrefix(`/api/estimate`) || PathPrefix(`/api/quote`)"
+      - "traefik.http.routers.quote.entrypoints=web"
+      - "traefik.http.routers.quote.priority=50"
+      # ✅ [수정] strip-api-quote 미들웨어 제거 (quote-backend는 Global Prefix가 /api이므로)
+      - "traefik.http.routers.quote.middlewares=limit-req@docker"
+
+  # [Search Backend]
+  search-backend:
+    image: 192.168.0.169/alphacar-project/alphacar-search:${BACKEND_VERSION:-1.0.0}
+    container_name: search_backend
+    restart: always
+    ulimits:
+      nofile:
+        soft: 32768
+        hard: 32768
+    networks:
+      - back-net
+    environment:
+      - PORT=3007
+      - SERVICE_NAME=search-backend
+      - OTEL_EXPORTER_OTLP_ENDPOINT=${OTEL_EXPORTER_OTLP_ENDPOINT}
+      - DATABASE_HOST=${MONGO_HOST}
+      - DATABASE_PORT=${MONGO_PORT}
+      - DATABASE_USER=${MONGO_USER}
+      - DATABASE_PASSWORD=${MONGO_PASS}
+      - DATABASE_NAME=${MONGO_DB_NAME}
+    extra_hosts:
+      - "mongodb_primary:${MONGO_HOST}"
+      - "mongodb_secondary_1:${MONGO_HOST}"
+      - "mongodb_secondary_2:${MONGO_HOST}"
+      - "mongodb-primary:${MONGO_HOST}"
+      - "mongodb-secondary-1:${MONGO_HOST}"
+      - "mongodb-secondary-2:${MONGO_HOST}"
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=back-net"
+      - "traefik.http.services.search.loadbalancer.server.port=3007"
+      - "traefik.http.middlewares.strip-api-search.stripprefix.prefixes=/api"
+      - "traefik.http.routers.search.rule=PathPrefix(`/api/search`)"
+      - "traefik.http.routers.search.entrypoints=web"
+      # ✅ [수정] limit-req@docker
+      - "traefik.http.routers.search.middlewares=strip-api-search,limit-req@docker"
+
+  # [MyPage Backend]
+  mypage-backend:
+    image: 192.168.0.169/alphacar-project/alphacar-mypage:${BACKEND_VERSION:-1.0.0}
+    container_name: mypage_backend
+    restart: always
+    ulimits:
+      nofile:
+        soft: 32768
+        hard: 32768
+    networks:
+      - back-net
+    environment:
+      - PORT=3006
+      - SERVICE_NAME=mypage-backend
+      - OTEL_EXPORTER_OTLP_ENDPOINT=${OTEL_EXPORTER_OTLP_ENDPOINT}
+      - DATABASE_HOST=${MONGO_HOST}
+      - DATABASE_PORT=${MONGO_PORT}
+      - DATABASE_USER=${MONGO_USER}
+      - DATABASE_PASSWORD=${MONGO_PASS}
+      - DATABASE_NAME=${MONGO_DB_NAME}
+      - MARIADB_HOST=${MARIADB_HOST}
+      - MARIADB_PORT=${MARIADB_PORT}
+      - MARIADB_USERNAME=${MARIADB_USER}
+      - MARIADB_PASSWORD=${MARIADB_PASS}
+      - MARIADB_DATABASE=${MARIADB_DB_NAME}
+      - JWT_SECRET=${JWT_SECRET}
+    extra_hosts:
+      - "mongodb_primary:${MONGO_HOST}"
+      - "mongodb_secondary_1:${MONGO_HOST}"
+      - "mongodb_secondary_2:${MONGO_HOST}"
+      - "mongodb-primary:${MONGO_HOST}"
+      - "mongodb-secondary-1:${MONGO_HOST}"
+      - "mongodb-secondary-2:${MONGO_HOST}"
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=back-net"
+      - "traefik.http.services.mypage.loadbalancer.server.port=3006"
+      - "traefik.http.middlewares.strip-api-mypage.stripprefix.prefixes=/api"
+      - "traefik.http.routers.mypage.rule=PathPrefix(`/api/mypage`) || PathPrefix(`/auth`)"
+      - "traefik.http.routers.mypage.entrypoints=web"
+      # ✅ [수정] limit-req@docker
+      - "traefik.http.routers.mypage.middlewares=strip-api-mypage,limit-req@docker"
+
+  # [Community Backend]
+  community-backend:
+    image: 192.168.0.169/alphacar-project/alphacar-community:${BACKEND_VERSION:-1.0.0}
+    container_name: community_backend
+    restart: always
+    ulimits:
+      nofile:
+        soft: 32768
+        hard: 32768
+    networks:
+      - back-net
+    environment:
+      - PORT=3005
+      - SERVICE_NAME=community-backend
+      - OTEL_EXPORTER_OTLP_ENDPOINT=${OTEL_EXPORTER_OTLP_ENDPOINT}
+      - MARIADB_TYPE=mariadb
+      - MARIADB_HOST=${MARIADB_HOST}
+      - MARIADB_PORT=${MARIADB_PORT}
+      - MARIADB_USERNAME=${MARIADB_USER}
+      - MARIADB_PASSWORD=${MARIADB_PASS}
+      - MARIADB_DATABASE=${MARIADB_DB_NAME}
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=back-net"
+      - "traefik.http.services.community.loadbalancer.server.port=3005"
+      - "traefik.http.middlewares.strip-api-comm.stripprefix.prefixes=/api"
+      - "traefik.http.routers.community.rule=PathPrefix(`/api/community`)"
+      - "traefik.http.routers.community.entrypoints=web"
+      # ✅ [수정] limit-req@docker
+      - "traefik.http.routers.community.middlewares=strip-api-comm,limit-req@docker"
+
+  # [AI Chat Backend]
+  aichat-backend:
+    image: 192.168.0.169/alphacar-project/alphacar-aichat:${BACKEND_VERSION:-1.0.0}
+    container_name: aichat_backend
+    restart: always
+    ulimits:
+      nofile:
+        soft: 32768
+        hard: 32768
+    networks:
+      - back-net
+    environment:
+      - PORT=4000
+      - SERVICE_NAME=aichat-backend
+      - OTEL_EXPORTER_OTLP_ENDPOINT=${OTEL_EXPORTER_OTLP_ENDPOINT}
+      - OTEL_LOG_LEVEL=debug
+      - OTEL_DIAG_LEVEL=debug
+      - DATABASE_HOST=${MONGO_HOST}
+      - DATABASE_PORT=${MONGO_PORT}
+      - DATABASE_USER=${MONGO_USER_AICHAT}
+      - DATABASE_PASSWORD=${MONGO_PASS_AICHAT}
+      - DATABASE_NAME=${MONGO_DB_NAME}
+      - AWS_REGION=${AWS_REGION}
+      - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
+      - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
+      - BEDROCK_GUARDRAIL_ID=${BEDROCK_GUARDRAIL_ID}
+      - BEDROCK_GUARDRAIL_VERSION=${BEDROCK_GUARDRAIL_VERSION}
+      - BEDROCK_EMBEDDING_MODEL_ID=${BEDROCK_EMBEDDING_MODEL_ID}
+      - BEDROCK_MODEL_ID=${BEDROCK_EMBEDDING_MODEL_ID}
+      - BEDROCK_LLM_MODEL_ID=${BEDROCK_LLM_MODEL_ID}
+    volumes:
+      - ../backend/aichat/vector_store:/app/vector_store
+    extra_hosts:
+      - "mongodb_primary:${MONGO_HOST}"
+      - "mongodb_secondary_1:${MONGO_HOST}"
+      - "mongodb_secondary_2:${MONGO_HOST}"
+      - "mongodb-primary:${MONGO_HOST}"
+      - "mongodb-secondary-1:${MONGO_HOST}"
+      - "mongodb-secondary-2:${MONGO_HOST}"
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=back-net"
+      - "traefik.http.services.aichat.loadbalancer.server.port=4000"
+      - "traefik.http.middlewares.ai-rewrite.replacepathregex.regex=^/api/chat/(.*)"
+      - "traefik.http.middlewares.ai-rewrite.replacepathregex.replacement=/chat/$$1"
+      - "traefik.http.routers.aichat.rule=PathPrefix(`/api/chat`)"
+      - "traefik.http.routers.aichat.entrypoints=web"
+      # ✅ [수정] limit-req@docker
+      - "traefik.http.routers.aichat.middlewares=ai-rewrite,limit-req@docker"
+
+  # [Drive Backend]
+  drive-backend:
+    image: 192.168.0.169/alphacar-project/alphacar-drive:${BACKEND_VERSION:-1.0.0}
+    container_name: drive_backend
+    restart: always
+    ulimits:
+      nofile:
+        soft: 32768
+        hard: 32768
+    networks:
+      - back-net
+    environment:
+      - PORT=3008
+      - SERVICE_NAME=drive-backend
+      - OTEL_EXPORTER_OTLP_ENDPOINT=${OTEL_EXPORTER_OTLP_ENDPOINT}
+      - DATABASE_HOST=${MONGO_HOST}
+      - DATABASE_PORT=${MONGO_PORT}
+      - DATABASE_USER=${MONGO_USER}
+      - DATABASE_PASSWORD=${MONGO_PASS}
+      - DATABASE_NAME=${MONGO_DB_NAME}
+    extra_hosts:
+      - "mongodb_primary:${MONGO_HOST}"
+      - "mongodb_secondary_1:${MONGO_HOST}"
+      - "mongodb_secondary_2:${MONGO_HOST}"
+      - "mongodb-primary:${MONGO_HOST}"
+      - "mongodb-secondary-1:${MONGO_HOST}"
+      - "mongodb-secondary-2:${MONGO_HOST}"
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=back-net"
+      - "traefik.http.services.drive.loadbalancer.server.port=3008"
+      - "traefik.http.middlewares.strip-api-drive.stripprefix.prefixes=/api"
+      - "traefik.http.routers.drive.rule=PathPrefix(`/api/drive`)"
+      - "traefik.http.routers.drive.entrypoints=web"
+      # ✅ [수정] limit-req@docker
+      - "traefik.http.routers.drive.middlewares=strip-api-drive,limit-req@docker"

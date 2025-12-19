@@ -1,0 +1,127 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: aichat-backend
+  namespace: alphacar-production
+  labels:
+    app: aichat-backend
+    tier: backend
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: aichat-backend
+  template:
+    metadata:
+      labels:
+        app: aichat-backend
+        tier: backend
+    spec:
+      imagePullSecrets:
+        - name: harbor-registry-secret
+      containers:
+      - name: aichat-backend
+        image: 192.168.0.169/alphacar-project/alphacar-aichat:1.0.0
+        ports:
+        - containerPort: 4000
+          name: http
+        env:
+        # MongoDB 설정 (AI Chat 전용 계정)
+        - name: DATABASE_HOST
+          valueFrom:
+            secretKeyRef:
+              name: mongodb-secret
+              key: host
+        - name: DATABASE_PORT
+          valueFrom:
+            secretKeyRef:
+              name: mongodb-secret
+              key: port
+        - name: DATABASE_USER
+          valueFrom:
+            secretKeyRef:
+              name: mongodb-aichat-secret
+              key: user
+        - name: DATABASE_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: mongodb-aichat-secret
+              key: password
+        - name: DATABASE_NAME
+          valueFrom:
+            secretKeyRef:
+              name: mongodb-secret
+              key: database
+        # AWS Bedrock 설정
+        - name: AWS_REGION
+          valueFrom:
+            secretKeyRef:
+              name: aws-bedrock-secret
+              key: region
+        - name: AWS_ACCESS_KEY_ID
+          valueFrom:
+            secretKeyRef:
+              name: aws-bedrock-secret
+              key: access_key_id
+        - name: AWS_SECRET_ACCESS_KEY
+          valueFrom:
+            secretKeyRef:
+              name: aws-bedrock-secret
+              key: secret_access_key
+        - name: BEDROCK_GUARDRAIL_ID
+          valueFrom:
+            secretKeyRef:
+              name: aws-bedrock-secret
+              key: guardrail_id
+        - name: BEDROCK_GUARDRAIL_VERSION
+          valueFrom:
+            secretKeyRef:
+              name: aws-bedrock-secret
+              key: guardrail_version
+        - name: BEDROCK_EMBEDDING_MODEL_ID
+          valueFrom:
+            secretKeyRef:
+              name: aws-bedrock-secret
+              key: embedding_model_id
+        - name: BEDROCK_MODEL_ID
+          valueFrom:
+            secretKeyRef:
+              name: aws-bedrock-secret
+              key: embedding_model_id
+        - name: BEDROCK_LLM_MODEL_ID
+          valueFrom:
+            secretKeyRef:
+              name: aws-bedrock-secret
+              key: llm_model_id
+        envFrom:
+        - configMapRef:
+            name: common-config
+        - configMapRef:
+            name: aichat-backend-config
+        volumeMounts:
+        - name: vector-store
+          mountPath: /app/vector_store
+        resources:
+          requests:
+            memory: "1Gi"
+            cpu: "500m"
+          limits:
+            memory: "2Gi"
+            cpu: "2000m"
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 4000
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 4000
+          initialDelaySeconds: 10
+          periodSeconds: 5
+      volumes:
+      - name: vector-store
+        persistentVolumeClaim:
+          claimName: aichat-vector-store-pvc
+

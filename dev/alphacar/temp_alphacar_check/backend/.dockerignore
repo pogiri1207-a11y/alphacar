@@ -1,0 +1,11 @@
+**/node_module
+dist
+coverage
+.git
+.gitignore
+.env
+README.md
+*.log
+npm-debug.log
+vector_store
+**/vector_store
